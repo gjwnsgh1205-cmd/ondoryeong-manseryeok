@@ -70,6 +70,14 @@ console.log('\n[5] 서머타임 1987/88 — 전환 시각 · gap · fold');
   threw = false;
   try { M.compute({ year: 1948, month: 6, day: 1, hour: 0, minute: 30, gender: 'M' }); } catch (e) { threw = true; }
   ok(threw, '1948-06-01 00:30 (gap) → 거부');
+  // 1948~60 종료일 fold — 표준시 해석 (UTC+9 시대 540, UTC+8:30 시대 510)
+  const f1 = M.compute({ year: 1948, month: 9, day: 12, hour: 23, minute: 30, gender: 'M' });
+  ok(f1.meta.timeStatus === 'fold' && f1.meta.tzOffsetMin === 540, '1948-09-12 23:30 → fold, 표준시 540', f1.meta.timeStatus + '/' + f1.meta.tzOffsetMin);
+  const f2 = M.compute({ year: 1955, month: 9, day: 8, hour: 23, minute: 30, gender: 'M' });
+  ok(f2.meta.timeStatus === 'fold' && f2.meta.tzOffsetMin === 510, '1955-09-08 23:30 → fold, 표준시 510', f2.meta.timeStatus + '/' + f2.meta.tzOffsetMin);
+  // fold 직전(22시대)은 여전히 DST
+  const f3 = M.compute({ year: 1948, month: 9, day: 12, hour: 22, minute: 30, gender: 'M' });
+  ok(f3.meta.tzOffsetMin === 600, '1948-09-12 22:30 → 아직 KDT 600', String(f3.meta.tzOffsetMin));
 }
 
 console.log('\n[6] 대운 — 개월 단위 구간 판정');
@@ -78,6 +86,8 @@ console.log('\n[6] 대운 — 개월 단위 구간 판정');
   const start = r.meta.daeunStartTotalMonths;
   ok(r.daeun[0].startMonths === start, '첫 대운 startMonths = 총개월', start + ' vs ' + r.daeun[0].startMonths);
   ok(r.meta.daeunAge === Math.floor(start / 12) && r.meta.daeunMonths === start % 12, '년·개월 분해 일치');
+  ok(r.daeun.every(d => d.endAge === Math.floor(d.endMonths / 12)), 'endAge = floor(endMonths/12)');
+  ok(r.daeun.every(d => d.endMonths === d.startMonths + 119), '구간 길이 120개월');
   ok(C.currentDaeun(r.daeun, start - 1).status === 'before', '시작 1개월 전 → before');
   ok(C.currentDaeun(r.daeun, start).status === 'current', '시작 개월 → current');
   ok(C.currentDaeun(r.daeun, start + 120).daeun.startMonths === start + 120, '120개월 뒤 → 둘째 대운');

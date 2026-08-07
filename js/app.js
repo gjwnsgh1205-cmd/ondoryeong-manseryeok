@@ -76,7 +76,7 @@
     const counsel = Counsel.concernCards(chart, age, ageMonths);
     lastResult = { chart, counsel, age, ageMonths };
 
-    renderAll(chart, counsel, age);
+    renderAll(chart, counsel, age, ageMonths);
     $('#input-section').classList.add('hidden');
     $('#result-section').classList.remove('hidden');
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -89,13 +89,19 @@
   });
 
   // ---------- 렌더링 ----------
-  function renderAll(chart, counsel, age) {
+  function renderAll(chart, counsel, age, ageMonths) {
     renderToday(chart);
     renderPillars(chart);
     renderElements(chart, counsel);
     renderDayMaster(chart);
-    renderDaeun(chart, counsel, age);
+    renderDaeun(chart, counsel, age, ageMonths);
     renderConcerns(counsel);
+  }
+
+  // 총개월 → "N세" 또는 "N세 M개월"
+  function fmtAgeM(months) {
+    const y = Math.floor(months / 12), mo = months % 12;
+    return `${y}세` + (mo ? ` ${mo}개월` : '');
   }
 
   function renderToday(chart) {
@@ -216,11 +222,11 @@
       <div class="dm-care"><b>마음 처방 —</b> ${esc(dm.care)}</div>`;
   }
 
-  function renderDaeun(chart, counsel, age) {
+  function renderDaeun(chart, counsel, age, ageMonths) {
     const cur = counsel.currentDaeun;
     $('#daeun-timeline').innerHTML = chart.daeun.map(d => `
       <div class="daeun-item ${cur && d.startMonths === cur.startMonths ? 'current' : ''}">
-        <div class="age">${d.startAge}–${d.endAge}세</div>
+        <div class="age">${fmtAgeM(d.startMonths)}~</div>
         <div class="gz">${d.stemInfo.han}<br>${d.branchInfo.han}</div>
         <div class="sip">${esc(d.stemSip)} · ${esc(d.branchSip)}</div>
       </div>`).join('');
@@ -240,11 +246,13 @@
       html = `<h3>계절 너머의 시기</h3>` + html;
       html += `<p>흐름표의 대운 구간을 이미 지나오셨어요. 이제는 운의 계절보다, 지나온 계절들에서 길어 올린 지혜가 삶의 중심이 됩니다.</p>`;
     }
-    // 대운 경계 안내
+    // 대운 경계 안내 — 개월 단위로 남은 기간 계산
     if (cur) {
-      const yearsLeft = cur.endAge - age + 1;
-      if (yearsLeft > 0 && yearsLeft <= 2) {
-        html += `<p style="margin-top:10px;color:var(--text-dim);font-size:13.5px;">약 ${yearsLeft}년 뒤 다음 계절로 넘어갑니다. 계절이 바뀌기 전, 지금 계절의 숙제를 정리해 보기 좋은 때예요.</p>`;
+      const monthsLeft = cur.endMonths - ageMonths + 1;
+      if (monthsLeft > 0 && monthsLeft <= 24) {
+        const yl = Math.floor(monthsLeft / 12), ml = monthsLeft % 12;
+        const leftTxt = yl ? `${yl}년${ml ? ' ' + ml + '개월' : ''}` : `${ml}개월`;
+        html += `<p style="margin-top:10px;color:var(--text-dim);font-size:13.5px;">약 ${esc(leftTxt)} 뒤 다음 계절로 넘어갑니다. 계절이 바뀌기 전, 지금 계절의 숙제를 정리해 보기 좋은 때예요.</p>`;
       }
     }
     $('#daeun-counsel').innerHTML = html;

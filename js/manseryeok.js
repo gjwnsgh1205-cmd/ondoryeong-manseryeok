@@ -177,7 +177,11 @@ const Manse = (() => {
     else off = 540;
     const dkey = y * 10000 + m * 100 + d;
     for (const [sy, sm, sd, ey, em, ed] of DST_DATE_RANGES) {
-      if (dkey >= sy * 10000 + sm * 100 + sd && dkey <= ey * 10000 + em * 100 + ed) { off += 60; break; }
+      if (dkey >= sy * 10000 + sm * 100 + sd && dkey <= ey * 10000 + em * 100 + ed) {
+        // 종료일 23시대는 fold(두 번 존재) — 표준시로 해석하므로 DST 가산 제외
+        if (!(dkey === ey * 10000 + em * 100 + ed && hh >= 23)) off += 60;
+        break;
+      }
     }
     const k = tkey(y, m, d, hh, mm);
     for (const { s, e } of DST_PRECISE) {
@@ -345,7 +349,7 @@ const Manse = (() => {
       const sm = daeunStartTotalMonths + (i - 1) * 120;
       daeun.push({
         startMonths: sm, endMonths: sm + 120 - 1,
-        startAge: Math.floor(sm / 12), endAge: Math.floor((sm + 120) / 12) - 1,
+        startAge: Math.floor(sm / 12), endAge: Math.floor((sm + 120 - 1) / 12),
         stem: s, branch: b,
         stemInfo: STEMS[s], branchInfo: BRANCHES[b],
         stemSip: sipseong(dStem, s),
