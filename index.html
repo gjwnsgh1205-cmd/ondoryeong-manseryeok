@@ -54,7 +54,7 @@
           <input type="checkbox" id="f-unknown-time"> 태어난 시각을 몰라요
         </label>
         <label class="check">
-          <input type="checkbox" id="f-true-solar" checked> 진태양시 보정 (−30분)
+          <input type="checkbox" id="f-true-solar" checked> 경도 보정 (동경 127.5°, −30분)
         </label>
       </div>
 
@@ -87,7 +87,7 @@
     <!-- 오행 밸런스 -->
     <section class="card">
       <h2 class="section-title">오행의 흐름</h2>
-      <p class="section-sub">마음 에너지가 어느 계절에 몰려 있는지 보여줍니다.</p>
+      <p class="section-sub">마음 에너지가 어느 계절에 몰려 있는지 보여줍니다. (천간 1 · 지지 1의 간이 가중치를 쓴 참고용 분포로, 학파에 따라 셈법이 다를 수 있어요)</p>
       <div id="element-chart" class="element-chart"></div>
       <div id="element-comment" class="element-comment"></div>
     </section>
@@ -130,6 +130,7 @@
   <p>마음이 많이 힘든 날에는 전문가와 이야기해 주세요 — 자살예방 상담전화 <strong>109</strong> · 정신건강 위기상담 <strong>1577-0199</strong> (24시간)</p>
 </footer>
 
+<script src="js/vendor/astronomy.browser.min.js"></script>
 <script src="js/manseryeok.js"></script>
 <script src="js/counsel.js"></script>
 <script src="js/app.js"></script>

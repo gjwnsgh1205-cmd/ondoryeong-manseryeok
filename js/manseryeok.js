@@ -97,8 +97,31 @@ const Manse = (() => {
     return ((apparent % 360) + 360) % 360;
   }
 
-  // 목표 황경(deg)에 도달하는 시각을 근사 JD에서 뉴턴 반복으로 탐색
+  // ΔT (TT-UT1, 초) — NASA/Espenak 다항식, 1900~2050
+  function deltaTSeconds(y) {
+    let t;
+    if (y < 1920) { t = y - 1900; return -2.79 + 1.494119 * t - 0.0598939 * t * t + 0.0061966 * t ** 3 - 0.000197 * t ** 4; }
+    if (y < 1941) { t = y - 1920; return 21.20 + 0.84493 * t - 0.076100 * t * t + 0.0020936 * t ** 3; }
+    if (y < 1961) { t = y - 1950; return 29.07 + 0.407 * t - t * t / 233 + t ** 3 / 2547; }
+    if (y < 1986) { t = y - 1975; return 45.45 + 1.067 * t - t * t / 260 - t ** 3 / 718; }
+    if (y < 2005) { t = y - 2000; return 63.86 + 0.3345 * t - 0.060374 * t * t + 0.0017275 * t ** 3 + 0.000651814 * t ** 4 + 0.00002373599 * t ** 5; }
+    t = y - 2000; return 62.92 + 0.32217 * t + 0.005589 * t * t;
+  }
+
+  // astronomy-engine(전역 Astronomy) 주입 지점 — node 테스트에서는 setAstro()로 주입
+  let AE = (typeof Astronomy !== 'undefined') ? Astronomy : null;
+  function setAstro(lib) { AE = lib; }
+
+  // 목표 황경(deg) 도달 시각(JD, UTC 기준) 탐색
+  // 1순위: astronomy-engine (오차 ~수 초) / 폴백: Meeus 근사 + ΔT 보정 (오차 ~±15분)
   function findTermJD(approxJD, targetDeg) {
+    if (AE) {
+      try {
+        const startDate = new Date((approxJD - 6 - 2440587.5) * 86400000);
+        const t = AE.SearchSunLongitude(((targetDeg % 360) + 360) % 360, new AE.AstroTime(startDate), 14);
+        if (t) return t.date.getTime() / 86400000 + 2440587.5;
+      } catch (e) { /* 폴백 사용 */ }
+    }
     let jd = approxJD;
     for (let i = 0; i < 30; i++) {
       let diff = targetDeg - solarLongitude(jd);
@@ -107,7 +130,9 @@ const Manse = (() => {
       if (Math.abs(diff) < 1e-6) break;
       jd += diff / 0.9856473; // 태양 평균 이동 deg/day
     }
-    return jd;
+    // solarLongitude는 TT 기준 식 — UTC로 환산
+    const yApprox = jdToDateUTC(jd).y;
+    return jd - deltaTSeconds(yApprox) / 86400;
   }
 
   // 사주 월을 정하는 12절(節) — 입춘 315°부터 30° 간격
@@ -129,22 +154,33 @@ const Manse = (() => {
   }
 
   // ---------- 한국 표준시 이력 ----------
-  // 반환: UTC 오프셋(분). dst 적용 시 실제 벽시계 기준으로 보정
-  const DST_RANGES = [ // [시작 y,m,d, 끝 y,m,d] (벽시계 날짜, 경계일 포함)
+  // 반환: UTC 오프셋(분). DST 포함, 벽시계 기준
+  // 1948~60년 서머타임: 자정 전환(날짜 단위) / 1987·88년: 시작일 02:00 → 종료일 03:00(KDT) 전환
+  const DST_DATE_RANGES = [ // [시작 y,m,d, 끝 y,m,d] (경계일 포함, 자정 전환)
     [1948, 6, 1, 1948, 9, 12], [1949, 4, 3, 1949, 9, 10], [1950, 4, 1, 1950, 9, 9],
     [1951, 5, 6, 1951, 9, 8], [1955, 5, 5, 1955, 9, 8], [1956, 5, 20, 1956, 9, 29],
     [1957, 5, 5, 1957, 9, 21], [1958, 5, 4, 1958, 9, 20], [1959, 5, 3, 1959, 9, 19],
-    [1960, 5, 1, 1960, 9, 17], [1987, 5, 10, 1987, 10, 10], [1988, 5, 8, 1988, 10, 8],
+    [1960, 5, 1, 1960, 9, 17],
   ];
-  function kstOffsetMin(y, m, d) {
+  const DST_PRECISE = [ // 벽시계 기준: [시작 y,m,d,hh,mm(존재하지 않는 02시대 포함)] ~ [종료 y,m,d,hh,mm(KDT))
+    { s: [1987, 5, 10, 2, 0], e: [1987, 10, 11, 3, 0] },
+    { s: [1988, 5, 8, 2, 0], e: [1988, 10, 9, 3, 0] },
+  ];
+  const tkey = (y, m, d, hh, mm) => (((y * 100 + m) * 100 + d) * 100 + hh) * 100 + mm;
+  function kstOffsetMin(y, m, d, hh = 12, mm = 0) {
     let off;
-    if (y < 1912) off = 510;                                    // UTC+8:30
+    if (y < 1912) off = 510;                                    // UTC+8:30 (1908 이전 LMT는 근사)
     else if (y < 1954 || (y === 1954 && (m < 3 || (m === 3 && d < 21)))) off = 540;
     else if (y < 1961 || (y === 1961 && (m < 8 || (m === 8 && d < 10)))) off = 510; // 54.3.21~61.8.9 UTC+8:30
     else off = 540;
-    const key = y * 10000 + m * 100 + d;
-    for (const [sy, sm, sd, ey, em, ed] of DST_RANGES) {
-      if (key >= sy * 10000 + sm * 100 + sd && key <= ey * 10000 + em * 100 + ed) { off += 60; break; }
+    const dkey = y * 10000 + m * 100 + d;
+    for (const [sy, sm, sd, ey, em, ed] of DST_DATE_RANGES) {
+      if (dkey >= sy * 10000 + sm * 100 + sd && dkey <= ey * 10000 + em * 100 + ed) { off += 60; break; }
+    }
+    const k = tkey(y, m, d, hh, mm);
+    for (const { s, e } of DST_PRECISE) {
+      // 종료일 02:00~02:59(중복 시간대)는 표준시로 해석
+      if (k >= tkey(...s) && k < tkey(e[0], e[1], e[2], 2, 0)) { off += 60; break; }
     }
     return off;
   }
@@ -168,13 +204,14 @@ const Manse = (() => {
    */
   function compute(input) {
     const { year, month, day, gender } = input;
+    if (year < 1900 || year > 2050) throw new Error('지원 범위는 1900년~2050년입니다.');
     const unknownTime = !!input.unknownTime;
     const hour = unknownTime ? 12 : input.hour;
     const minute = unknownTime ? 0 : input.minute;
     const useTrueSolar = input.useTrueSolar !== false;
 
-    // 1) 벽시계 → 표준시 → 진태양시 보정(-30분, 동경 127.5°)
-    const offMin = kstOffsetMin(year, month, day);
+    // 1) 벽시계 → 표준시 → 경도 보정(-30분, 동경 127.5° 기준. 균시차 미적용)
+    const offMin = kstOffsetMin(year, month, day, hour, minute);
     let adjMin = hour * 60 + minute;
     let adjY = year, adjM = month, adjD = day;
     if (useTrueSolar && !unknownTime) adjMin -= 30;
@@ -241,14 +278,15 @@ const Manse = (() => {
     };
     pillars.day.stemSipseong = '일간(나)';
 
-    // 8) 오행 분포 (천간 1.0, 지지 본기 1.0, 지장간 여기 0.3)
+    // 8) 오행 분포 — 간이 가중(학파별 차이 있음): 천간 1.0 / 지지 합계 1.0 (본기 0.7, 나머지 지장간 0.3 균등 분배)
     const elCount = [0, 0, 0, 0, 0];
     const addP = (p) => {
       if (!p) return;
       elCount[p.stemInfo.el] += 1;
       const hid = p.branchInfo.hidden;
-      elCount[STEMS[hid[hid.length - 1]].el] += 1;
-      for (let i = 0; i < hid.length - 1; i++) elCount[STEMS[hid[i]].el] += 0.3;
+      elCount[STEMS[hid[hid.length - 1]].el] += 0.7;
+      const rest = hid.length - 1;
+      for (let i = 0; i < rest; i++) elCount[STEMS[hid[i]].el] += 0.3 / rest;
     };
     Object.values(pillars).forEach(addP);
 
@@ -271,9 +309,11 @@ const Manse = (() => {
     } else {
       gapDays = birthJD - terms[monthIdx].jd;
     }
-    let daeunAge = Math.round(gapDays / 3);
-    if (daeunAge < 1) daeunAge = 1;
-    if (daeunAge > 10) daeunAge = 10;
+    // 3일 = 1년 환산. 클램프 없이 년·개월 보존 (절입 당일 출생이면 0세 0개월도 가능)
+    const daeunYearsF = Math.max(0, gapDays) / 3;
+    let daeunAge = Math.floor(daeunYearsF);
+    let daeunMonths = Math.round((daeunYearsF - daeunAge) * 12);
+    if (daeunMonths >= 12) { daeunAge += 1; daeunMonths = 0; }
     const mIdx60 = findGanjiIndex(mStem, mBranch);
     const daeun = [];
     for (let i = 1; i <= 9; i++) {
@@ -289,12 +329,25 @@ const Manse = (() => {
       });
     }
 
+    // 11) 절기 경계 근접 감지 — 경계 30분 이내면 연주/월주가 바뀔 수 있음을 안내
+    const allTerms = terms.concat([yearTerms(sajuYear + 1)[0]]);
+    let nearestTermMin = Infinity, nearestTermName = null;
+    for (const t of allTerms) {
+      const dmin = Math.abs(birthJD - t.jd) * 1440;
+      if (dmin < nearestTermMin) { nearestTermMin = dmin; nearestTermName = t.name; }
+    }
+    const boundaryWarning = nearestTermMin <= 30;
+    const termDayWarning = unknownTime && nearestTermMin <= 720; // 시간 미상 + 절입 당일 부근
+
     return {
       input: { ...input },
       meta: {
         sajuYear, monthIdx, monthTerm: terms[monthIdx].name,
         adjusted: { y: adjY, m: adjM, d: adjD, hh: adjHour, mm: adjMinute },
-        tzOffsetMin: offMin, forward, daeunAge, useTrueSolar,
+        tzOffsetMin: offMin, forward, daeunAge, daeunMonths, useTrueSolar,
+        assumedNoon: unknownTime,
+        boundaryWarning, termDayWarning, nearestTermMin: Math.round(nearestTermMin), nearestTermName,
+        precise: !!AE,
       },
       pillars, elCount, sipCount, daeun,
       dayStem: dStem,
@@ -314,14 +367,16 @@ const Manse = (() => {
     return { y: t.y, m: t.m, d: t.d };
   }
 
-  // 오늘의 일진 (KST)
+  // 오늘의 일진 (KST, 출생 일주와 동일하게 23시부터 다음 날 일진으로 취급)
   function todayIljin(now = new Date()) {
     const kst = new Date(now.getTime() + (9 * 60 + now.getTimezoneOffset()) * 60000);
-    const idx = ((jdn(kst.getFullYear(), kst.getMonth() + 1, kst.getDate()) + 49) % 60 + 60) % 60;
+    let j = jdn(kst.getFullYear(), kst.getMonth() + 1, kst.getDate());
+    if (kst.getHours() >= 23) j += 1;
+    const idx = ((j + 49) % 60 + 60) % 60;
     return { stem: idx % 10, branch: idx % 12, stemInfo: STEMS[idx % 10], branchInfo: BRANCHES[idx % 12] };
   }
 
-  return { STEMS, BRANCHES, ELEMENTS, SIPSEONG_GROUP, compute, sipseong, todayIljin, yearTerms, jdn };
+  return { STEMS, BRANCHES, ELEMENTS, SIPSEONG_GROUP, compute, sipseong, todayIljin, yearTerms, jdn, setAstro };
 })();
 
 if (typeof module !== 'undefined') module.exports = Manse;

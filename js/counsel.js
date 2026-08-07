@@ -21,7 +21,7 @@ const Counsel = (() => {
       essence: '유연하게 환경에 적응하며 어디서든 살아남는 생명력. 부드럽지만 결코 약하지 않은 마음이에요.',
       mind: '당신은 관계와 환경의 온도에 민감합니다. 주변과 조화를 이룰 때 편안하고, 갈등 상황에서는 정면 대결보다 우회로를 찾아요. 그 유연함은 생존 지혜이지만, 때로 "내 목소리"를 뒤로 미루는 습관이 되기도 합니다.',
       strengths: ['공감과 섬세한 눈치', '어떤 환경에서도 적응하는 회복탄력성', '실리적인 문제 해결'],
-      stress: '싫다는 말을 못 하고 맞춰주다가 어느 날 갑자기 지쳐버리는 패턴이 있어요. 스트레스가 몸(소화, 어깨, 수면)으로 먼저 신호를 보내는 편입니다.',
+      stress: '싫다는 말을 못 하고 맞춰주다가 어느 날 갑자기 지쳐버리는 패턴이 있어요. 마음이 지치면 몸이 먼저 신호를 보내는 경우도 많으니, 컨디션 변화를 스트레스의 신호로 읽어봐 주세요.',
       care: '작은 거절부터 연습해 보세요. "생각해 볼게요"라는 한마디도 훌륭한 경계입니다. 당신의 유연함은 남을 위해서만이 아니라 자신을 위해 쓸 때 완성됩니다.',
     },
     { // 丙 병화
@@ -86,7 +86,7 @@ const Counsel = (() => {
       mind: '당신은 관찰력이 뛰어나고 상대의 마음을 잘 읽습니다. 순응적으로 보이지만 내면엔 자기만의 깊은 세계와 원칙이 있어요. 감수성이 풍부한 만큼 감정의 밀물과 썰물도 잦은 편입니다.',
       strengths: ['섬세한 공감과 직관', '조용한 지혜와 통찰', '스며들 듯 사람을 얻는 힘'],
       stress: '기분의 파도가 잦고, 불안이 스며들기 시작하면 상상 속에서 걱정을 키우는 경향이 있어요. 속을 다 보여주지 않아 "알 수 없는 사람"이라는 말을 듣기도 합니다.',
-      care: '이슬비는 멈추는 날도 있어야 땅이 숨을 쉽니다. 감정의 파도가 높은 날엔 "이건 날씨 같은 것, 지나간다"고 이름 붙여 주세요. 몸을 따뜻하게 하는 것(반신욕, 따뜻한 차)이 마음 안정에 직접 도움이 되는 체질이에요.',
+      care: '이슬비는 멈추는 날도 있어야 땅이 숨을 쉽니다. 감정의 파도가 높은 날엔 "이건 날씨 같은 것, 지나간다"고 이름 붙여 주세요. 몸을 따뜻하게 하는 소소한 의식(반신욕, 따뜻한 차)도 마음을 가라앉히는 데 도움이 되곤 해요.',
     },
   ];
 
@@ -198,9 +198,10 @@ const Counsel = (() => {
       const grp = Manse.SIPSEONG_GROUP[k];
       g[grp] = (g[grp] || 0) + v;
     }
-    let best = null, bestV = -1;
-    for (const [k, v] of Object.entries(g)) if (v > bestV) { best = k; bestV = v; }
-    return { group: best, dist: g };
+    let bestV = -1;
+    for (const v of Object.values(g)) if (v > bestV) bestV = v;
+    const groups = Object.entries(g).filter(([, v]) => v === bestV).map(([k]) => k);
+    return { group: groups[0], groups, tie: groups.length > 1, dist: g };
   }
 
   function elementAnalysis(elCount) {
@@ -218,8 +219,9 @@ const Counsel = (() => {
   }
 
   function currentDaeun(daeun, age) {
-    for (const d of daeun) if (age >= d.startAge && age <= d.endAge) return d;
-    return age < daeun[0].startAge ? null : daeun[daeun.length - 1];
+    for (const d of daeun) if (age >= d.startAge && age <= d.endAge) return { status: 'current', daeun: d };
+    if (age < daeun[0].startAge) return { status: 'before', daeun: null };
+    return { status: 'after', daeun: daeun[daeun.length - 1] };
   }
 
   function lifeStage(age) {
@@ -232,7 +234,8 @@ const Counsel = (() => {
     const dm = DAY_MASTERS[chart.dayStem];
     const ana = elementAnalysis(chart.elCount);
     const dom = dominantGroup(chart.sipCount);
-    const cd = currentDaeun(chart.daeun, age);
+    const cdInfo = currentDaeun(chart.daeun, age);
+    const cd = cdInfo.status === 'current' ? cdInfo.daeun : null;
     const cdMsg = cd ? DAEUN_MSG[Manse.SIPSEONG_GROUP[cd.stemSip]] : null;
     const excess = ana.filter(a => a.state === 'excess');
     const lack = ana.filter(a => a.state === 'lack');
@@ -249,7 +252,9 @@ const Counsel = (() => {
 
     // 관계
     const rel = SIPSEONG_PSY[dom.group];
-    let relation = `당신의 명식에서 가장 두드러진 기운은 ${rel.name}입니다.\n\n관계에서 당신은 — ${rel.relation}\n\n`;
+    let relation = dom.tie
+      ? `당신의 명식에서는 ${dom.groups.map(g => SIPSEONG_PSY[g].name).join('과 ')}이 비슷한 힘으로 함께 흐릅니다. 그중 ${rel.name}의 결을 먼저 살펴볼게요.\n\n관계에서 당신은 — ${rel.relation}\n\n`
+      : `당신의 명식에서 가장 두드러진 기운은 ${rel.name}입니다.\n\n관계에서 당신은 — ${rel.relation}\n\n`;
     relation += `일간 ${Manse.STEMS[chart.dayStem].kor}${Manse.STEMS[chart.dayStem].han}의 시선으로 보면, ${dm.stress}\n\n`;
     relation += `💡 관계 연습 — ${rel.growth}`;
     cards.relation = { title: '관계 · 사람', body: relation };
@@ -257,27 +262,28 @@ const Counsel = (() => {
     // 일 · 진로
     let work = `${rel.work}\n\n강점으로 꼽을 수 있는 것들:\n${dm.strengths.map(s => '· ' + s).join('\n')}\n\n`;
     if (cdMsg) work += `지금 대운은 「${cdMsg.theme}」에 해당합니다. ${cdMsg.msg}`;
-    else work += `아직 첫 대운이 시작되기 전이에요. 이 시기는 타고난 기질이 가장 순수하게 드러나는 때입니다.`;
+    else if (cdInfo.status === 'before') work += `아직 첫 대운이 시작되기 전이에요. 이 시기는 타고난 기질이 가장 순수하게 드러나는 때입니다.`;
+    else work += `대운 흐름표의 큰 구간을 이미 다 지나오셨어요. 이제는 운의 계절보다 쌓아온 경험 자체가 가장 큰 자산이 되는 때입니다.`;
     cards.work = { title: '일 · 진로', body: work };
 
     // 몸 · 활력
     let body = '';
     if (excess.length || lack.length) {
-      body += '오행의 쏠림은 몸의 리듬에도 힌트를 줍니다.\n\n';
+      body += '오행의 쏠림을 생활 리듬의 힌트로 삼아볼 수 있어요. 아래는 의학적 조언이 아니라, 원하면 시도해 볼 수 있는 생활 습관 제안입니다.\n\n';
       const tips = {
-        0: '목 기운 — 스트레칭과 걷기, 신맛 나는 과일. 근육과 눈의 피로를 살펴주세요.',
-        1: '화 기운 — 심박을 올리는 운동으로 발산하되, 카페인과 밤샘은 줄이기. 심장과 순환의 리듬을 지켜주세요.',
-        2: '토 기운 — 규칙적인 식사 시간이 보약입니다. 위장이 마음의 거울이 되는 체질이에요.',
-        3: '금 기운 — 호흡이 얕아지기 쉬워요. 깊은 심호흡, 맑은 공기, 가벼운 유산소를 권해요.',
-        4: '수 기운 — 몸을 따뜻하게, 수면을 깊게. 하체를 움직이는 운동이 마음 안정에 직결됩니다.',
+        0: '목(성장) 기운 — 몸을 늘이고 걷는 활동이 기분 전환에 잘 맞는 편이에요. 화면 앞에 오래 있었다면 자주 일어나 주세요.',
+        1: '화(표현) 기운 — 심박을 올리는 운동으로 발산하는 것이 잘 맞는 편. 늦은 카페인과 밤샘은 다음 날 기분에 이자를 붙여 청구되곤 해요.',
+        2: '토(안정) 기운 — 규칙적인 식사 시간과 일정한 하루 리듬이 마음의 안정감으로 이어지기 쉬워요.',
+        3: '금(경계) 기운 — 긴장하면 숨이 얕아지기 쉬우니, 깊은 심호흡과 가벼운 유산소로 몸의 긴장을 풀어 주세요.',
+        4: '수(회복) 기운 — 몸을 따뜻하게, 수면을 넉넉하게. 하체를 움직이는 운동이 생각 과다를 줄이는 데 도움이 되곤 해요.',
       };
       const focus = [...excess, ...lack].slice(0, 2);
       body += focus.map(f => tips[f.el]).join('\n\n') + '\n\n';
     }
-    body += '몸과 마음은 하나의 순환입니다. 마음이 무거운 주간일수록 몸의 루틴(수면·식사·햇빛)을 먼저 붙잡아 주세요.';
+    body += '몸과 마음은 하나의 순환입니다. 마음이 무거운 주간일수록 몸의 루틴(수면·식사·햇빛)을 먼저 붙잡아 주세요.\n\n※ 잠·식욕·통증 같은 몸의 신호가 2주 이상 계속되면, 사주보다 병원 진료가 먼저입니다.';
     cards.body = { title: '몸 · 활력', body };
 
-    return { cards, dominant: dom, analysis: ana, currentDaeun: cd, currentDaeunMsg: cdMsg };
+    return { cards, dominant: dom, analysis: ana, currentDaeun: cd, currentDaeunStatus: cdInfo.status, currentDaeunMsg: cdMsg };
   }
 
   // ---------- 오늘의 한 마디 ----------

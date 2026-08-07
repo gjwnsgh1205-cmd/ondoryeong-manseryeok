@@ -47,12 +47,22 @@
       alert('존재하지 않는 날짜예요. 다시 확인해 주세요.');
       return;
     }
+    if (dt > new Date()) {
+      alert('미래의 날짜는 풀이할 수 없어요. 태어난 날짜를 확인해 주세요.');
+      return;
+    }
     if (!unknownTime && ($('#f-hour').value === '' || $('#f-minute').value === '')) {
       alert('태어난 시각을 입력하거나 "시각을 몰라요"를 선택해 주세요.');
       return;
     }
 
-    const chart = Manse.compute({ year, month, day, hour, minute, gender, unknownTime, useTrueSolar });
+    let chart;
+    try {
+      chart = Manse.compute({ year, month, day, hour, minute, gender, unknownTime, useTrueSolar });
+    } catch (err) {
+      alert(err.message || '계산 중 문제가 생겼어요. 입력을 확인해 주세요.');
+      return;
+    }
     const age = koreanAge(year, month, day);
     const counsel = Counsel.concernCards(chart, age);
     lastResult = { chart, counsel, age };
@@ -132,9 +142,17 @@
     let note = `절기 기준 ${m.sajuYear}년주 · ${m.monthTerm} 이후 월주`;
     if (!inp.unknownTime) {
       note += ` · 보정 시각 ${String(adj.hh).padStart(2, '0')}:${String(adj.mm).padStart(2, '0')}`;
-      if (m.useTrueSolar) note += ' (진태양시)';
+      if (m.useTrueSolar) note += ' (경도 보정 −30분)';
+    } else {
+      note += ' · 시각 미상 — 정오(12:00) 가정';
     }
-    $('#board-note').textContent = note;
+    let warn = '';
+    if (m.boundaryWarning) {
+      warn = `⚠ 절기(${m.nearestTermName}) 경계에서 약 ${m.nearestTermMin}분 이내의 출생이에요. 출생 시각이 몇 분만 달라져도 연주·월주가 바뀔 수 있으니, 출생증명서 등으로 시각을 한 번 더 확인해 보세요.`;
+    } else if (m.termDayWarning) {
+      warn = `⚠ 태어난 날이 절기(${m.nearestTermName}) 절입일과 가까워요. 시각을 모르는 경우 연주·월주가 실제와 다를 수 있습니다.`;
+    }
+    $('#board-note').innerHTML = esc(note) + (warn ? `<br><span class="note-warn">${esc(warn)}</span>` : '');
   }
 
   function renderElements(chart, counsel) {
@@ -198,14 +216,19 @@
       const cm = counsel.currentDaeunMsg;
       html = `<h3>지금의 계절 · ${cur.stemInfo.kor}${cur.branchInfo.kor} 대운 「${esc(cm.theme)}」</h3>` + html;
       html += `<p>${esc(cm.msg)}</p>`;
-    } else {
+    } else if (counsel.currentDaeunStatus === 'before') {
+      const dm2 = chart.meta;
+      const startTxt = `${dm2.daeunAge}세${dm2.daeunMonths ? ' ' + dm2.daeunMonths + '개월' : ''}`;
       html = `<h3>첫 대운을 기다리는 시기</h3>` + html;
-      html += `<p>아직 첫 대운(${chart.meta.daeunAge}세 무렵)이 시작되기 전이에요. 타고난 기질이 가장 순수하게 자라는 시기입니다.</p>`;
+      html += `<p>첫 대운은 약 ${esc(startTxt)} 무렵 시작돼요. 아직은 타고난 기질이 가장 순수하게 자라는 시기입니다.</p>`;
+    } else {
+      html = `<h3>계절 너머의 시기</h3>` + html;
+      html += `<p>흐름표의 대운 구간을 이미 지나오셨어요. 이제는 운의 계절보다, 지나온 계절들에서 길어 올린 지혜가 삶의 중심이 됩니다.</p>`;
     }
     // 대운 경계 안내
     if (cur) {
       const yearsLeft = cur.endAge - age + 1;
-      if (yearsLeft <= 2) {
+      if (yearsLeft > 0 && yearsLeft <= 2) {
         html += `<p style="margin-top:10px;color:var(--text-dim);font-size:13.5px;">약 ${yearsLeft}년 뒤 다음 계절로 넘어갑니다. 계절이 바뀌기 전, 지금 계절의 숙제를 정리해 보기 좋은 때예요.</p>`;
       }
     }
