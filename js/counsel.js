@@ -218,9 +218,10 @@ const Counsel = (() => {
     return result;
   }
 
-  function currentDaeun(daeun, age) {
-    for (const d of daeun) if (age >= d.startAge && age <= d.endAge) return { status: 'current', daeun: d };
-    if (age < daeun[0].startAge) return { status: 'before', daeun: null };
+  // ageMonths: 만 나이의 총개월 수 — 대운 구간(startMonths~endMonths)과 같은 단위로 판정
+  function currentDaeun(daeun, ageMonths) {
+    for (const d of daeun) if (ageMonths >= d.startMonths && ageMonths <= d.endMonths) return { status: 'current', daeun: d };
+    if (ageMonths < daeun[0].startMonths) return { status: 'before', daeun: null };
     return { status: 'after', daeun: daeun[daeun.length - 1] };
   }
 
@@ -230,11 +231,12 @@ const Counsel = (() => {
   }
 
   // ---------- 고민별 상담 생성 ----------
-  function concernCards(chart, age) {
+  function concernCards(chart, age, ageMonths) {
+    if (ageMonths == null) ageMonths = age * 12;
     const dm = DAY_MASTERS[chart.dayStem];
     const ana = elementAnalysis(chart.elCount);
     const dom = dominantGroup(chart.sipCount);
-    const cdInfo = currentDaeun(chart.daeun, age);
+    const cdInfo = currentDaeun(chart.daeun, ageMonths);
     const cd = cdInfo.status === 'current' ? cdInfo.daeun : null;
     const cdMsg = cd ? DAEUN_MSG[Manse.SIPSEONG_GROUP[cd.stemSip]] : null;
     const excess = ana.filter(a => a.state === 'excess');

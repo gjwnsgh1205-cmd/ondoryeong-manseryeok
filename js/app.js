@@ -18,6 +18,13 @@
     if (now < bd) age -= 1;
     return age;
   }
+  function ageInMonths(y, m, d) {
+    // 만 나이 총개월 (대운 구간 판정용)
+    const now = new Date();
+    let months = (now.getFullYear() - y) * 12 + (now.getMonth() + 1 - m);
+    if (now.getDate() < d) months -= 1;
+    return Math.max(0, months);
+  }
   const esc = (s) => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
   // ---------- 폼 ----------
@@ -47,8 +54,9 @@
       alert('존재하지 않는 날짜예요. 다시 확인해 주세요.');
       return;
     }
-    if (dt > new Date()) {
-      alert('미래의 날짜는 풀이할 수 없어요. 태어난 날짜를 확인해 주세요.');
+    const birthDT = unknownTime ? dt : new Date(year, month - 1, day, hour, minute);
+    if (birthDT > new Date()) {
+      alert('미래의 날짜·시각은 풀이할 수 없어요. 태어난 날짜를 확인해 주세요.');
       return;
     }
     if (!unknownTime && ($('#f-hour').value === '' || $('#f-minute').value === '')) {
@@ -64,8 +72,9 @@
       return;
     }
     const age = koreanAge(year, month, day);
-    const counsel = Counsel.concernCards(chart, age);
-    lastResult = { chart, counsel, age };
+    const ageMonths = ageInMonths(year, month, day);
+    const counsel = Counsel.concernCards(chart, age, ageMonths);
+    lastResult = { chart, counsel, age, ageMonths };
 
     renderAll(chart, counsel, age);
     $('#input-section').classList.add('hidden');
@@ -146,13 +155,19 @@
     } else {
       note += ' · 시각 미상 — 정오(12:00) 가정';
     }
-    let warn = '';
+    const warns = [];
     if (m.boundaryWarning) {
-      warn = `⚠ 절기(${m.nearestTermName}) 경계에서 약 ${m.nearestTermMin}분 이내의 출생이에요. 출생 시각이 몇 분만 달라져도 연주·월주가 바뀔 수 있으니, 출생증명서 등으로 시각을 한 번 더 확인해 보세요.`;
+      warns.push(`⚠ 절기(${m.nearestTermName}) 경계에서 약 ${m.nearestTermMin}분 이내의 출생이에요. 출생 시각이 몇 분만 달라져도 연주·월주가 바뀔 수 있으니, 출생증명서 등으로 시각을 한 번 더 확인해 보세요.`);
     } else if (m.termDayWarning) {
-      warn = `⚠ 태어난 날이 절기(${m.nearestTermName}) 절입일과 가까워요. 시각을 모르는 경우 연주·월주가 실제와 다를 수 있습니다.`;
+      warns.push(`⚠ 태어난 날이 절기(${m.nearestTermName}) 절입일과 가까워요. 시각을 모르는 경우 연주·월주가 실제와 다를 수 있습니다.`);
     }
-    $('#board-note').innerHTML = esc(note) + (warn ? `<br><span class="note-warn">${esc(warn)}</span>` : '');
+    if (m.timeStatus === 'fold') {
+      warns.push('⚠ 서머타임이 끝나며 두 번 존재했던 시각이에요. 여기서는 표준시 기준으로 해석했습니다.');
+    }
+    if (!m.precise) {
+      warns.push('⚠ 정밀 천문 계산 모듈을 불러오지 못해 근사 계산(±15분)을 사용했어요. 절기 경계 부근이라면 결과가 달라질 수 있습니다.');
+    }
+    $('#board-note').innerHTML = esc(note) + warns.map(w => `<br><span class="note-warn">${esc(w)}</span>`).join('');
   }
 
   function renderElements(chart, counsel) {
@@ -204,7 +219,7 @@
   function renderDaeun(chart, counsel, age) {
     const cur = counsel.currentDaeun;
     $('#daeun-timeline').innerHTML = chart.daeun.map(d => `
-      <div class="daeun-item ${cur && d.startAge === cur.startAge ? 'current' : ''}">
+      <div class="daeun-item ${cur && d.startMonths === cur.startMonths ? 'current' : ''}">
         <div class="age">${d.startAge}–${d.endAge}세</div>
         <div class="gz">${d.stemInfo.han}<br>${d.branchInfo.han}</div>
         <div class="sip">${esc(d.stemSip)} · ${esc(d.branchSip)}</div>

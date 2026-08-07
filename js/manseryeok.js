@@ -111,6 +111,7 @@ const Manse = (() => {
   // astronomy-engine(전역 Astronomy) 주입 지점 — node 테스트에서는 setAstro()로 주입
   let AE = (typeof Astronomy !== 'undefined') ? Astronomy : null;
   function setAstro(lib) { AE = lib; }
+  let fallbackUsed = false; // 직전 compute에서 Meeus 폴백을 썼는지 추적
 
   // 목표 황경(deg) 도달 시각(JD, UTC 기준) 탐색
   // 1순위: astronomy-engine (오차 ~수 초) / 폴백: Meeus 근사 + ΔT 보정 (오차 ~±15분)
@@ -122,6 +123,7 @@ const Manse = (() => {
         if (t) return t.date.getTime() / 86400000 + 2440587.5;
       } catch (e) { /* 폴백 사용 */ }
     }
+    fallbackUsed = true;
     let jd = approxJD;
     for (let i = 0; i < 30; i++) {
       let diff = targetDeg - solarLongitude(jd);
@@ -185,6 +187,21 @@ const Manse = (() => {
     return off;
   }
 
+  // 서머타임 전환 시각 검증: 'ok' | 'gap'(존재하지 않는 시각) | 'fold'(두 번 존재한 시각)
+  // 1948~60년: 00:00 전환(시작일 00시대 gap, 종료일 23시대 fold)
+  // 1987~88년: 02:00→03:00 시작(시작일 02시대 gap), 03:00 KDT→02:00 KST 종료(종료일 02시대 fold)
+  function kstTimeStatus(y, m, d, hh) {
+    for (const [sy, sm, sd, ey, em, ed] of DST_DATE_RANGES) {
+      if (y === sy && m === sm && d === sd && hh === 0) return 'gap';
+      if (y === ey && m === em && d === ed && hh === 23) return 'fold';
+    }
+    for (const { s, e } of DST_PRECISE) {
+      if (y === s[0] && m === s[1] && d === s[2] && hh === 2) return 'gap';
+      if (y === e[0] && m === e[1] && d === e[2] && hh === 2) return 'fold';
+    }
+    return 'ok';
+  }
+
   // ---------- 십성 ----------
   function sipseong(dayStemIdx, otherStemIdx) {
     const d = STEMS[dayStemIdx], o = STEMS[otherStemIdx];
@@ -209,6 +226,12 @@ const Manse = (() => {
     const hour = unknownTime ? 12 : input.hour;
     const minute = unknownTime ? 0 : input.minute;
     const useTrueSolar = input.useTrueSolar !== false;
+    fallbackUsed = false;
+
+    const timeStatus = unknownTime ? 'ok' : kstTimeStatus(year, month, day, hour);
+    if (timeStatus === 'gap') {
+      throw new Error('서머타임 전환으로 그날 실제로는 존재하지 않았던 시각이에요. 출생 시각을 다시 확인해 주세요.');
+    }
 
     // 1) 벽시계 → 표준시 → 경도 보정(-30분, 동경 127.5° 기준. 균시차 미적용)
     const offMin = kstOffsetMin(year, month, day, hour, minute);
@@ -309,19 +332,20 @@ const Manse = (() => {
     } else {
       gapDays = birthJD - terms[monthIdx].jd;
     }
-    // 3일 = 1년 환산. 클램프 없이 년·개월 보존 (절입 당일 출생이면 0세 0개월도 가능)
-    const daeunYearsF = Math.max(0, gapDays) / 3;
-    let daeunAge = Math.floor(daeunYearsF);
-    let daeunMonths = Math.round((daeunYearsF - daeunAge) * 12);
-    if (daeunMonths >= 12) { daeunAge += 1; daeunMonths = 0; }
+    // 3일 = 1년 환산. 클램프 없이 총개월로 보존 (절입 당일 출생이면 0개월도 가능)
+    // 구간 판정도 개월 단위로 한다 — 예: 7세 5개월 시작이면 만 89개월부터가 첫 대운
+    const daeunStartTotalMonths = Math.round(Math.max(0, gapDays) / 3 * 12);
+    const daeunAge = Math.floor(daeunStartTotalMonths / 12);
+    const daeunMonths = daeunStartTotalMonths % 12;
     const mIdx60 = findGanjiIndex(mStem, mBranch);
     const daeun = [];
     for (let i = 1; i <= 9; i++) {
       const gi = ((mIdx60 + (forward ? i : -i)) % 60 + 60) % 60;
       const s = gi % 10, b = gi % 12;
+      const sm = daeunStartTotalMonths + (i - 1) * 120;
       daeun.push({
-        startAge: daeunAge + (i - 1) * 10,
-        endAge: daeunAge + i * 10 - 1,
+        startMonths: sm, endMonths: sm + 120 - 1,
+        startAge: Math.floor(sm / 12), endAge: Math.floor((sm + 120) / 12) - 1,
         stem: s, branch: b,
         stemInfo: STEMS[s], branchInfo: BRANCHES[b],
         stemSip: sipseong(dStem, s),
@@ -344,10 +368,10 @@ const Manse = (() => {
       meta: {
         sajuYear, monthIdx, monthTerm: terms[monthIdx].name,
         adjusted: { y: adjY, m: adjM, d: adjD, hh: adjHour, mm: adjMinute },
-        tzOffsetMin: offMin, forward, daeunAge, daeunMonths, useTrueSolar,
-        assumedNoon: unknownTime,
+        tzOffsetMin: offMin, forward, daeunAge, daeunMonths, daeunStartTotalMonths, useTrueSolar,
+        assumedNoon: unknownTime, timeStatus,
         boundaryWarning, termDayWarning, nearestTermMin: Math.round(nearestTermMin), nearestTermName,
-        precise: !!AE,
+        precise: !fallbackUsed,
       },
       pillars, elCount, sipCount, daeun,
       dayStem: dStem,
@@ -376,7 +400,7 @@ const Manse = (() => {
     return { stem: idx % 10, branch: idx % 12, stemInfo: STEMS[idx % 10], branchInfo: BRANCHES[idx % 12] };
   }
 
-  return { STEMS, BRANCHES, ELEMENTS, SIPSEONG_GROUP, compute, sipseong, todayIljin, yearTerms, jdn, setAstro };
+  return { STEMS, BRANCHES, ELEMENTS, SIPSEONG_GROUP, compute, sipseong, todayIljin, yearTerms, jdn, setAstro, timeStatus: kstTimeStatus };
 })();
 
 if (typeof module !== 'undefined') module.exports = Manse;
