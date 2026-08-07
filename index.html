@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>결 — 만세력 마음 상담소</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header class="site-header">
+  <div class="brand">
+    <span class="brand-mark">結</span>
+    <div class="brand-text">
+      <h1>결</h1>
+      <p>만세력 마음 상담소</p>
+    </div>
+  </div>
+  <p class="tagline">태어난 날의 하늘을 읽고, 오늘의 마음을 돌봅니다</p>
+</header>
+
+<main>
+  <!-- ========== 입력 ========== -->
+  <section id="input-section" class="card input-card">
+    <h2 class="section-title">당신의 시작점을 알려주세요</h2>
+    <p class="section-sub">생년월일시로 사주 명식을 세우고, 심리·생애주기 상담의 언어로 풀어드립니다.</p>
+
+    <form id="birth-form" autocomplete="off">
+      <div class="form-grid">
+        <div class="field">
+          <label for="f-year">태어난 해 (양력)</label>
+          <input type="number" id="f-year" min="1900" max="2050" placeholder="1990" required>
+        </div>
+        <div class="field">
+          <label for="f-month">월</label>
+          <input type="number" id="f-month" min="1" max="12" placeholder="6" required>
+        </div>
+        <div class="field">
+          <label for="f-day">일</label>
+          <input type="number" id="f-day" min="1" max="31" placeholder="15" required>
+        </div>
+        <div class="field time-field">
+          <label for="f-hour">태어난 시각</label>
+          <div class="time-inputs">
+            <input type="number" id="f-hour" min="0" max="23" placeholder="14">
+            <span>:</span>
+            <input type="number" id="f-minute" min="0" max="59" placeholder="30">
+          </div>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <label class="check">
+          <input type="checkbox" id="f-unknown-time"> 태어난 시각을 몰라요
+        </label>
+        <label class="check">
+          <input type="checkbox" id="f-true-solar" checked> 진태양시 보정 (−30분)
+        </label>
+      </div>
+
+      <div class="form-row gender-row">
+        <span class="field-label">성별</span>
+        <div class="seg">
+          <label><input type="radio" name="gender" value="F" checked><span>여성</span></label>
+          <label><input type="radio" name="gender" value="M"><span>남성</span></label>
+        </div>
+      </div>
+
+      <button type="submit" class="btn-main">명식 세우고 상담 시작하기</button>
+      <p class="form-note">음력 생일만 아신다면 양력으로 변환해 입력해 주세요. 1954–1961년 출생(표준시 변경), 1948–60·1987–88년 서머타임은 자동 보정됩니다.</p>
+    </form>
+  </section>
+
+  <!-- ========== 결과 ========== -->
+  <div id="result-section" class="hidden">
+
+    <!-- 오늘의 한 마디 -->
+    <section class="card today-card" id="today-card"></section>
+
+    <!-- 명식 -->
+    <section class="card">
+      <h2 class="section-title">사주 명식 <span class="title-sub" id="chart-birth-info"></span></h2>
+      <div id="pillar-board" class="pillar-board"></div>
+      <p class="board-note" id="board-note"></p>
+    </section>
+
+    <!-- 오행 밸런스 -->
+    <section class="card">
+      <h2 class="section-title">오행의 흐름</h2>
+      <p class="section-sub">마음 에너지가 어느 계절에 몰려 있는지 보여줍니다.</p>
+      <div id="element-chart" class="element-chart"></div>
+      <div id="element-comment" class="element-comment"></div>
+    </section>
+
+    <!-- 일간 심리 프로필 -->
+    <section class="card">
+      <h2 class="section-title">나의 중심 <span class="title-sub" id="dm-ganji"></span></h2>
+      <div id="daymaster-profile"></div>
+    </section>
+
+    <!-- 생애주기 대운 -->
+    <section class="card">
+      <h2 class="section-title">생애의 계절 <span class="title-sub">대운 흐름</span></h2>
+      <p class="section-sub">10년마다 바뀌는 삶의 계절입니다. 지금 어떤 계절을 지나고 있는지 살펴보세요.</p>
+      <div id="daeun-timeline" class="daeun-timeline"></div>
+      <div id="daeun-counsel" class="daeun-counsel"></div>
+    </section>
+
+    <!-- 고민별 상담 -->
+    <section class="card">
+      <h2 class="section-title">주제별 상담</h2>
+      <p class="section-sub">지금 마음이 머무는 주제를 골라보세요.</p>
+      <div class="tabs" id="concern-tabs">
+        <button data-tab="mind" class="tab active">마음 · 감정</button>
+        <button data-tab="relation" class="tab">관계 · 사람</button>
+        <button data-tab="work" class="tab">일 · 진로</button>
+        <button data-tab="body" class="tab">몸 · 활력</button>
+      </div>
+      <div id="concern-body" class="concern-body"></div>
+    </section>
+
+    <div class="actions">
+      <button id="btn-again" class="btn-ghost">다른 명식 보기</button>
+    </div>
+  </div>
+</main>
+
+<footer class="site-footer">
+  <p>이 앱의 풀이는 명리학 이론을 바탕으로 한 자기 이해의 거울이며, 의학적 진단이나 심리치료를 대체하지 않습니다.</p>
+  <p>마음이 많이 힘든 날에는 전문가와 이야기해 주세요 — 자살예방 상담전화 <strong>109</strong> · 정신건강 위기상담 <strong>1577-0199</strong> (24시간)</p>
+</footer>
+
+<script src="js/manseryeok.js"></script>
+<script src="js/counsel.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
