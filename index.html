@@ -79,7 +79,8 @@
   </section>
 
   <!-- ========== 로딩 연출 ========== -->
-  <div id="loading-overlay" class="loading-overlay hidden" aria-hidden="true">
+  <div id="loading-overlay" class="loading-overlay hidden" aria-hidden="true"
+       role="status" aria-live="polite" aria-atomic="true">
     <div class="loading-box">
       <div id="dr-loading" class="dr-loading"></div>
       <p class="loading-text">어디 보자…, 만세력을 넘겨보는 중이라네</p>
@@ -92,6 +93,7 @@
 
     <!-- 도령의 풀이 도입 + 오늘의 한 마디 -->
     <div class="dr-scene dr-scene-result">
+      <h2 id="result-heading" class="sr-only" tabindex="-1">온도령의 사주 풀이 결과</h2>
       <div id="dr-result-avatar" class="dr-avatar-lg"></div>
       <div class="bubble-stack">
         <div class="bubble" id="dr-intro"></div>

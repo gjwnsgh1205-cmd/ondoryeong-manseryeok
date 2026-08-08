@@ -14,8 +14,9 @@
   --text-dim: #a89f8e;
   --text-on-paper: #2c2620;
   --text-on-paper-dim: #6b6153;
-  --accent: #c9a227;      /* 금박 */
+  --accent: #c9a227;           /* 먹색 위 금박 */
   --accent-deep: #a3801a;
+  --accent-on-paper: #6f5710;  /* 한지 위 금색 — 대비 4.5:1 확보 */
 
   /* 오행 오방색 (톤 다운) */
   --el-wood: #4e8d6e;
@@ -71,12 +72,12 @@ body {
 
 /* ---------- 도령 장면 + 말풍선 ---------- */
 .dr-scene {
-  display: flex; align-items: flex-end; gap: 6px;
-  margin: 26px 0 20px;
+  display: flex; align-items: center; gap: 2px;
+  margin: 18px 0 20px;
 }
-.dr-hero { flex-shrink: 0; margin-bottom: -6px; animation: drFloat 3.8s ease-in-out infinite; }
-.dr-avatar-lg { flex-shrink: 0; animation: drFloat 4.2s ease-in-out infinite; }
-.dr-scene-result, .dr-scene-close { align-items: flex-start; margin-top: 6px; }
+.dr-hero { flex-shrink: 0; }
+.dr-avatar-lg { flex-shrink: 0; }
+.dr-scene-result, .dr-scene-close { align-items: center; margin-top: 6px; }
 .doryeong { display: block; filter: drop-shadow(0 10px 18px rgba(0, 0, 0, .45)); }
 .dr-eye { transform-box: fill-box; transform-origin: center; animation: drBlink 4.6s infinite; }
 @keyframes drBlink { 0%, 91%, 100% { transform: scaleY(1); } 94% { transform: scaleY(.08); } 97% { transform: scaleY(1); } }
@@ -107,15 +108,37 @@ body {
 .bubble-stack .bubble + .bubble { animation-delay: .25s; }
 .bubble-stack .bubble + .bubble::before { display: none; }
 .bubble-today { background: var(--paper-dim); font-size: 14.5px; }
-.bubble-today b { color: var(--accent-deep); }
+.bubble-today b { color: var(--accent-on-paper); }
 .dr-name {
   display: block;
   font-family: var(--serif);
   font-size: 12.5px;
   letter-spacing: 2px;
-  color: var(--accent-deep);
+  color: var(--accent-on-paper);
   margin-bottom: 6px;
   font-weight: 700;
+}
+
+/* 캐릭터 미디어 (mp4 컷 / poster 폴백)
+   mp4에는 알파가 없어 먹색 배경이 사각형으로 드러난다.
+   가장자리를 마스크로 흐려 페이지 배경에 녹인다. */
+.dr-media {
+  display: block;
+  width: 100%;
+  height: auto;
+  background: transparent;
+  -webkit-mask-image: radial-gradient(ellipse 52% 60% at 50% 49%, #000 42%, transparent 92%);
+  mask-image: radial-gradient(ellipse 52% 60% at 50% 49%, #000 42%, transparent 92%);
+}
+.dr-hero .dr-media { width: 300px; margin: -18px -30px; }
+.dr-avatar-lg .dr-media { width: 150px; margin: -10px -16px; }
+.dr-loading .dr-media { width: 190px; margin: -12px; }
+
+/* 스크린리더 전용 */
+.sr-only {
+  position: absolute; width: 1px; height: 1px;
+  padding: 0; margin: -1px; overflow: hidden;
+  clip: rect(0 0 0 0); white-space: nowrap; border: 0;
 }
 @keyframes bubbleIn {
   from { opacity: 0; transform: translateY(10px) scale(.97); }
@@ -417,6 +440,19 @@ input[type=number]:focus { outline: none; border-color: var(--accent); }
 .site-footer p + p { margin-top: 8px; }
 .site-footer strong { color: var(--accent); }
 
+/* ---------- 모션 감속 선호 ---------- */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .001ms !important;
+    scroll-behavior: auto !important;
+  }
+  .dr-hero, .dr-avatar-lg, .dr-loading, .doryeong, .dr-eye,
+  .bubble, .loading-dots span { animation: none !important; }
+  .el-fill { transition: none !important; }
+}
+
 /* ---------- 반응형 ---------- */
 @media (max-width: 640px) {
   .site-header { padding-top: 28px; }
@@ -436,4 +472,7 @@ input[type=number]:focus { outline: none; border-color: var(--accent); }
     border-top-width: 0;
   }
   .dr-scene-result .doryeong, .dr-scene-close .doryeong { width: 84px; }
+  .dr-hero .dr-media { width: 215px; margin: -14px -22px; }
+  .dr-avatar-lg .dr-media { width: 116px; margin: -8px -12px; }
+  .dr-loading .dr-media { width: 150px; }
 }

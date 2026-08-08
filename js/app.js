@@ -7,7 +7,27 @@
   const E = Manse.ELEMENTS;
   const EL_COLORS = ['var(--el-wood)', 'var(--el-fire)', 'var(--el-earth)', 'var(--el-metal)', 'var(--el-water)'];
 
-  let lastResult = null; // { chart, counsel, age, ageMonths }
+  let lastResult = null;   // { chart, counsel, age, ageMonths }
+  let revealTimer = null;  // 로딩 연출 타이머 — 중복 제출·되돌아가기 시 취소한다
+  let isLoading = false;
+
+  const REDUCED = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const SCROLL = REDUCED ? 'auto' : 'smooth';
+
+  function setLoading(on) {
+    isLoading = on;
+    const ov = $('#loading-overlay');
+    ov.classList.toggle('hidden', !on);
+    ov.setAttribute('aria-hidden', on ? 'false' : 'true');
+    const input = $('#input-section');
+    if (on) input.setAttribute('inert', ''); else input.removeAttribute('inert');
+    $('#birth-form').querySelector('.btn-main').disabled = on;
+  }
+
+  function cancelReveal() {
+    if (revealTimer) { clearTimeout(revealTimer); revealTimer = null; }
+    setLoading(false);
+  }
 
   // ---------- 유틸 ----------
   function koreanAge(y, m, d) {
@@ -39,6 +59,7 @@
 
   form.addEventListener('submit', (e) => {
     e.preventDefault();
+    if (isLoading) return; // 연출 중 재제출(엔터 연타) 차단
     const year = +$('#f-year').value;
     const month = +$('#f-month').value;
     const day = +$('#f-day').value;
@@ -77,21 +98,24 @@
     lastResult = { chart, counsel, age, ageMonths };
 
     // 도령이 만세력을 넘기는 연출 후 결과 공개
-    const overlay = $('#loading-overlay');
-    overlay.classList.remove('hidden');
-    setTimeout(() => {
+    setLoading(true);
+    revealTimer = setTimeout(() => {
+      revealTimer = null;
       renderAll(chart, counsel, age, ageMonths);
       $('#input-section').classList.add('hidden');
       $('#result-section').classList.remove('hidden');
-      overlay.classList.add('hidden');
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }, 1150);
+      setLoading(false);
+      window.scrollTo({ top: 0, behavior: SCROLL });
+      $('#result-heading').focus({ preventScroll: true });
+    }, REDUCED ? 0 : 1150);
   });
 
   $('#btn-again').addEventListener('click', () => {
+    cancelReveal();
     $('#result-section').classList.add('hidden');
     $('#input-section').classList.remove('hidden');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: SCROLL });
+    $('#f-year').focus({ preventScroll: true });
   });
 
   // ---------- 렌더링 ----------
@@ -114,8 +138,8 @@
     // 도령 말풍선: 풀이 도입 + 오늘의 한 마디
     const t = Counsel.todayMessage(chart);
     const grp = Manse.SIPSEONG_GROUP[t.sip];
-    $('#dr-result-avatar').innerHTML = Doryeong.svg(104);
-    $('#dr-close-avatar').innerHTML = Doryeong.svg(88);
+    $('#dr-result-avatar').innerHTML = Doryeong.media({ kind: 'reveal', loop: false });
+    $('#dr-close-avatar').innerHTML = Doryeong.media({ kind: 'bow', loop: false });
     $('#dr-intro').innerHTML = `<span class="dr-name">온도령</span>` + esc(Doryeong.resultIntro(chart));
     $('#dr-today').innerHTML =
       `오늘은 <b>${t.iljin.stemInfo.han}${t.iljin.branchInfo.han}(${esc(t.iljin.stemInfo.kor + t.iljin.branchInfo.kor)})일</b>, ` +
@@ -281,10 +305,11 @@
   }
 
   // ---------- 도령 초기 렌더 (모든 정의 이후 실행) ----------
-  $('#dr-hero').innerHTML = Doryeong.svg(190);
-  $('#dr-loading').innerHTML = Doryeong.svg(120);
+  $('#dr-hero').innerHTML = Doryeong.media({ kind: 'idle', loop: true, label: '온도령 캐릭터' });
+  $('#dr-loading').innerHTML = Doryeong.media({ kind: 'reading', loop: true });
   $('#dr-greet').innerHTML = `<span class="dr-name">온도령</span>` + esc(Doryeong.GREET);
   document.querySelectorAll('.dr-bridge').forEach(el => {
     el.textContent = Doryeong.BRIDGES[el.dataset.bridge] || '';
   });
+  if (REDUCED) document.querySelectorAll('video.dr-media').forEach(v => v.pause());
 })();
