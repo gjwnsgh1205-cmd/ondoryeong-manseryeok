@@ -789,72 +789,77 @@
 
   }
 
-  /* ── 잠긴 문 ─────────────────────────────────────────── */
-  // "[ 한 가지 ]" 를 글자 수만큼의 빈칸으로 바꾼다.
-  // 잠겨 있을 땐 답을 DOM에 아예 넣지 않는다 — 화면에서만 가리는 건 가린 게 아니다.
-  function maskTitle(title, open) {
-    // 대괄호 밖 글자도 반드시 escape 한다. 지금 content.js 는 우리가 만들지만,
-    // 나중에 이 자리에 다른 데서 온 문자열이 들어오면 그대로 영구 XSS 가 된다.
-    const out = [];
-    const re = /\[\s*([^\]]*?)\s*\]/g;
-    let last = 0, m;
-    while ((m = re.exec(title)) !== null) {
-      out.push(esc(title.slice(last, m.index)));
-      if (open) out.push(`<b>${esc(m[1])}</b>`);
-      else {
-        const w = Math.max(2, Math.min(10, [...m[1]].length));
-        out.push(`<span class="blank" style="width:${w}ch" role="img" aria-label="잠긴 부분"></span>`);
-      }
-      last = m.index + m[0].length;
-    }
-    out.push(esc(title.slice(last)));
-    return out.join('');
+  /* 제목의 "[ 한 가지 ]" 를 빈칸으로 바꾸던 함수가 여기 있었다.
+     카드 12장 목록이 사라지면서 쓰는 데가 없어져 지웠다.
+     이제 가리는 일은 chapter.js 가 문단 단위로 한다. */
+
+  /* ── 값 ───────────────────────────────────────────────
+     예전엔 "아직 열지 않은 것" 이라는 카드 12장 목록과 결제 카드가 있었다.
+     목록은 제 위에 있는 탭을 그대로 다시 부르는 것뿐이었고, 무료 4장의 바로가기는
+     탭을 넣으면서 죽었다(숨은 탭을 가리켜 눌러도 아무 일이 없었다).
+     목록을 걷어내고, 값은 화면 아래 한 줄로 눕혔다.
+     가려진 글은 이제 각 탭 안에서 제자리에 가려진다 — 목록으로 셀 필요가 없다. */
+  function renderPaybar() {
+    const bar = $('paybar');
+    if (!bar) return;
+    bar.classList.toggle('hidden', opened());
+    if (opened()) return;
+
+    // 지금 이 탭에서 가려진 게 몇 군데인지 세어 문구에 담는다.
+    // "가려진 게 있다" 를 숫자로 보여주면 막연한 광고보다 덜 미덥잖다.
+    const n = document.querySelectorAll('.pane:not([hidden]) .cp-veil, .pane:not([hidden]) .veiled').length;
+    // 390px 한 줄에 들어가야 한다. 길면 두 줄로 접혀 바가 두꺼워진다.
+    $('paybar-lead').textContent = n ? `가려진 ${n}곳 열기` : '전체 풀이 열기';
+    $('unlock-price').textContent = SUB_PRICE.toLocaleString('ko-KR') + '원';
+    $('unlock-note').textContent =
+      '결제는 아직 붙이는 중이라 지금은 눌러도 그냥 열려요.';
   }
 
-  // 무료 챕터의 본문은 위 섹션 그 자체다 — 눌러서 올라가게 한다.
-  const CH_ANCHOR = {
-    'day-master-nature': 'sec-nature',
-    'five-element-balance': 'sec-elements',
-    'daewoon-overview': 'sec-curve',
-    'today-fortune': 'sec-today',
-  };
+  /* ── 재물 · 일 ─────────────────────────────────────────
+     사용자가 "재물이야기나 사주팔자의 해석을 좀 더 구체적으로" 라고 한 자리다.
+     글은 미리 지어뒀지만 어느 편을 고르는지는 엔진이 정한다 —
+     재성이 얼마나 있고, 편재냐 정재냐, 만들어 내는 힘이 밀어주나, 나눠 갖는 모양인가.
 
-  function renderChapters() {
-    const list = rp.chapters;
-    const openN = list.filter((c) => c.open).length;
-    $('locked-lead').textContent = opened()
-      ? `${list.length}가지 모두 열려 있어요. 천천히 읽어보세요.`
-      : `모두 ${list.length}가지를 짚었는데, 지금 읽으실 수 있는 건 ${openN}가지예요.`;
+     조건 문단(feeds/contest/strong/weak)은 본문 뒤에 얹는다.
+     해당하는 사람에게만 나가야 해서 본문에 넣을 수 없다. */
+  function renderReading(boxId, ch, addons, basis) {
+    const box = $(boxId);
+    if (!box) return;
+    if (!CP || !ch) { box.innerHTML = ''; return; }
 
-    $('ch-list').innerHTML = list.map((c) => {
-      const to = CH_ANCHOR[c.id];
-      const body = `
-        <span class="ch-body">
-          <span class="ch-group">${esc(c.group)}</span>
-          <span class="ch-title">${maskTitle(c.title, c.open)}</span>
-          <span class="ch-teaser">${esc(c.teaser)}${to ? ' · 위에서 이미 펼쳐뒀어요' : ''}</span>
-        </span>`;
-      const mark = `<span class="ch-mark" aria-hidden="true">${c.open ? '✦' : '⌾'}</span>`;
-      return to
-        ? `<li><a class="ch-item ch-open" href="#${to}" data-to="${to}">${mark}${body}</a></li>`
-        : `<li class="ch-item ${c.open ? 'ch-open' : 'ch-lock'}">${mark}${body}</li>`;
-    }).join('');
+    const extra = (addons || []).filter(Boolean)
+      .map((t) => `<p>${CP.bold(t)}</p>`).join('');
 
-    $('ch-list').querySelectorAll('[data-to]').forEach((a) =>
-      a.addEventListener('click', (e) => {
-        e.preventDefault();
-        $(a.dataset.to).scrollIntoView({ block: 'start', behavior: 'smooth' });
-      }));
+    box.innerHTML = CP.render(ch, {
+      open: opened(),
+      values: { 이름: readerName() },
+      cta: `<button type="button" class="td-open" data-open="1">${
+        SUB_PRICE.toLocaleString('ko-KR')}원으로 마저 읽기</button>`,
+    })
+      // 조건 문단은 잠겼을 때 함께 가린다. 본문 뒤에 붙는 것도 결국 유료분이다.
+      + (extra && opened() ? `<div class="rd-add">${extra}</div>` : '')
+      + (basis ? `<p class="rd-basis">${esc(basis)}</p>` : '');
+  }
 
-    $('unlock').classList.toggle('hidden', ent.sub);
-    $('unlock-price').textContent = SUB_PRICE.toLocaleString('ko-KR') + '원';
-    $('deep-price').textContent = DEEP_PRICE.toLocaleString('ko-KR') + '원';
-    $('deep-note').textContent = ent.deep
-      ? '이미 받으셨어요. 상담 화면에서 이어서 물어보세요.'
-      : '한 달에 한 번, 시작하면 그 자리에서 몇 번이든 이어 물을 수 있어요. 결제는 아직 붙이는 중이에요.';
-    $('unlock-note').textContent =
-      '결제는 아직 붙이는 중이라 지금은 눌러도 그냥 열려요. 언제든 끊을 수 있고, 끊어도 그달 끝까지는 볼 수 있어요.';
-    $('btn-unlock').textContent = `달마다 ${SUB_PRICE.toLocaleString('ko-KR')}원으로 전부 열기`;
+  function renderWealth() {
+    const c = typeof Content !== 'undefined' ? Content : null;
+    const lf = c && c.longform;
+    const w = rp.wealth;
+    if (!lf || !lf.wealth || !w) { $('wealth').innerHTML = ''; return; }
+    const a = lf.wealthAddons || {};
+    renderReading('wealth', lf.wealth[w.key], [
+      w.feeds ? a.feeds : null,
+      w.contest ? a.contest : null,
+      w.strength === '신강' ? a.strong : w.strength === '신약' ? a.weak : null,
+    ], a.basis);
+  }
+
+  function renderWork() {
+    const c = typeof Content !== 'undefined' ? Content : null;
+    const lf = c && c.longform;
+    const k = rp.work;
+    if (!lf || !lf.work || !k) { $('work').innerHTML = ''; return; }
+    renderReading('work', lf.work[k.key], [], '');
   }
 
   /* ── 상담 초대 ───────────────────────────────────────── */
@@ -913,6 +918,8 @@
     }
     // 새로 뜬 판의 애니메이션을 다시 걸어준다 — 숨어 있던 동안은 관찰이 안 됐다.
     observeReveal();
+    // 가려진 곳 수는 탭마다 다르다. 판을 바꿨으니 다시 센다.
+    if (rp) renderPaybar();
   }
 
   function wireTabs() {
@@ -945,7 +952,9 @@
     renderOheng();
     renderCurve();
     renderToday();
-    renderChapters();
+    renderWealth();
+    renderWork();
+    renderPaybar();
     renderInvite();
     $('cs-name').textContent = rp.type.name;
     // 아직 어느 탭도 안 열렸으면 첫 방문이다. "이게 나를 맞히나" 를 재는 자리로 연다.
@@ -1228,7 +1237,8 @@
       saveEnt();
       rp = Report.build(chart, { unlocked: opened() });
       renderReport();
-      $('sec-locked').scrollIntoView({ block: 'start', behavior: 'smooth' });
+      const bar = $('tabs');
+      if (bar) window.scrollTo({ top: Math.max(0, bar.offsetTop - 8), behavior: 'smooth' });
     });
 
     /* 가려진 자리를 여는 단추(.td-open)는 글 안에서 만들어진다.
@@ -1245,11 +1255,11 @@
     // 한 번에 제대로 — 내 사정을 받아 그 위에 명식을 얹는 자리.
     // 미리 지어둔 글로는 못 하는 것이라 여기만 값이 다르다.
     // 19,800원은 "내 이야기를 듣고 쓰는 풀이"다. 먼저 이야기를 받는다.
-    $('btn-deep').addEventListener('click', toSituation);
+    // 19,800원 단건은 접었다(월 4,900원 하나로 간다). 단추가 화면에 없어 연결하지 않는다.
     $('btn-sit-back').addEventListener('click', () => {
       $('step-situation').classList.add('hidden');
       $('report').classList.remove('hidden');
-      $('sec-locked').scrollIntoView({ block: 'center', behavior: 'smooth' });
+      $('paybar').scrollIntoView({ block: 'center', behavior: 'smooth' });
     });
     $('sit-form').addEventListener('submit', (e) => {
       e.preventDefault();

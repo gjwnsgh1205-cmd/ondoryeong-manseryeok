@@ -559,7 +559,87 @@ const Report = (() => {
     };
   }
 
-  /* ══════════════ 챕터 ══════════════ */
+  /* ══════════════ 재물 ══════════════
+     명리에서 돈을 볼 때 실제로 쓰는 다섯 가지를 그대로 계산한다.
+       ① 재성이 얼마나 있나              벌 그릇의 크기
+       ② 편재냐 정재냐                   큰 판을 벌이나, 차곡차곡 쌓나
+       ③ 식상이 재성을 밀어주나(식상생재)  만들어서 버나, 그냥 들어오나
+       ④ 비겁이 재성보다 센가(비겁쟁재)    들어온 걸 나눠 갖게 되나
+       ⑤ 일간이 그 재물을 감당하나        신약한데 재성만 크면 짐이 된다
+
+     구간은 지어낸 게 아니다. tools/measure_wealth.js 로 20,000표본을 계산해
+     삼등분한 값이다. 눈대중으로 자르면 열에 아홉이 한 칸에 몰린다. */
+  /* WEALTH:BEGIN */
+  const JAE_LO = 0.124;   // 하위 3분의 1
+  const JAE_HI = 0.242;   // 상위 3분의 1
+  const SIK_FEED = 0.10;  // 이만큼은 있어야 식상이 재성을 밀어준다고 본다
+  /* WEALTH:END */
+
+  function wealth(chart) {
+    const g = groupShares(chart);
+    const st = strength(chart);
+
+    // 재성 안에서 편재와 정재 중 어느 쪽이 잦은가. 자리 무게가 아니라 개수로 센다 —
+    // 어느 쪽 성질이 겉으로 드러나느냐의 문제라 무게보다 빈도가 맞다.
+    const P = chart.pillars;
+    let pyeon = 0, jeong = 0;
+    for (const k of ['year', 'month', 'day', 'hour']) {
+      const p = P[k];
+      if (!p) continue;
+      for (const s of [p.stemSipseong, p.branchSipseong]) {
+        if (s === '편재') pyeon++;
+        else if (s === '정재') jeong++;
+      }
+    }
+    const kind = pyeon > jeong ? '편재' : jeong > pyeon ? '정재'
+               : pyeon ? '섞임' : '없음';
+
+    const band = g.재성 < JAE_LO ? '적음' : g.재성 < JAE_HI ? '보통' : '많음';
+    const feeds = g.식상 >= SIK_FEED;
+    const contest = g.비겁 > g.재성;
+
+    return {
+      share: g.재성, band, kind,
+      feeds, contest,
+      strength: st.label,
+      // 재성이 없는 사람에게 "편재가 어쩌고" 를 쓰면 안 된다. 글 고르는 열쇠다.
+      key: `${band}-${kind === '섞임' ? '편재' : kind}`,
+      // 화면에 근거로 까는 숫자들
+      parts: {
+        재성: +(g.재성 * 100).toFixed(1),
+        식상: +(g.식상 * 100).toFixed(1),
+        비겁: +(g.비겁 * 100).toFixed(1),
+      },
+    };
+  }
+
+  /* ══════════════ 일 ══════════════
+     식상(만들어 내는 힘)과 관성(맡아 지키는 힘) 중 어느 쪽이 센가로 가른다.
+     여기에 월지 십성(직업궁)을 얹으면 "어떤 자리에서 그 힘을 쓰나" 가 나온다. */
+  function work(chart) {
+    const g = groupShares(chart);
+    const gap = g.식상 - g.관성;
+    const lean = gap > 0.06 ? '만드는 쪽' : gap < -0.06 ? '맡는 쪽' : '반반';
+    const mb = chart.pillars.month;
+    const field = mb ? groupOf(mb.branchSipseong) : '비겁';
+    return {
+      lean, field,
+      key: `${lean}-${field}`,
+      parts: { 식상: +(g.식상 * 100).toFixed(1), 관성: +(g.관성 * 100).toFixed(1) },
+    };
+  }
+
+  /* ══════════════ 챕터 ══════════════
+     주제 12개의 목록이다. 예전엔 이걸 카드 12장으로 화면에 늘어놓았는데,
+     목록이 제 위에 있는 탭을 그대로 다시 부르는 꼴이라 걷어냈다.
+
+     데이터는 남겨 둔다. **아직 긴 글로 안 옮긴 주제가 무엇인지 알려주는 명세**이기 때문이다.
+       옮김   ① 성격의 뿌리 → 타고난 성격 탭   ② 오행 → 사주팔자 탭
+              ④ 대운 → 인생 흐름 탭            ⑤ 오늘 → 오늘의 운수 탭
+              ⑩ 돈 · ⑪ 일 → 사주팔자 탭
+       남음   ③ 두 번째 얼굴  ⑥ 갈아타는 그 해 그 달  ⑦ 첫인상
+              ⑧ 곁에 있으면 편한 사람  ⑨ 틀어질 때 되풀이하는 대목  ⑫ 올해 일의 기운
+     여섯 개를 다 옮기면 이 함수와 content.chapters 를 지운다. */
 
   function chapters(chart, unlocked) {
     const c = C();
@@ -592,6 +672,8 @@ const Report = (() => {
       flow: flow(chart, now, cur),
       year: thisYear(chart, now),
       chapters: chapters(chart, opt.unlocked),
+      wealth: wealth(chart),
+      work: work(chart),
       totalCharts: totalFor(chart),
       // 시각을 모르면 여덟 글자가 아니라 여섯 글자다. 화면 문구가 이 값을 보고 갈린다.
       glyphCount: (chart.meta && chart.meta.assumedNoon) ? 6 : 8,
@@ -601,7 +683,7 @@ const Report = (() => {
   return {
     TOTAL_CHARTS, TOTAL_CHARTS_NO_HOUR, totalFor, build, rarity, strength, typeName,
     luckCurve, todayLuck, tomorrowPeek, branchRelation, todayScore, weekAhead,
-    thisYear, thisMonth, flow, chapters,
+    thisYear, thisMonth, flow, chapters, wealth, work,
     ageMonthsNow, currentPoint, dayStamp,
     skewScore, strengthRatio, groupShares,
   };

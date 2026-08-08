@@ -1206,3 +1206,51 @@ a.ch-item { text-decoration: none; color: inherit; }
 .td-read summary::after { content: ' ⌄'; color: var(--gold-ink); }
 .td-read[open] summary::after { content: ' ⌃'; }
 .td-read-body { padding-top: .9rem; }
+
+/* ══════════════════════════════════════════════════════
+   값 — 화면 아래 한 줄
+
+   예전엔 스크롤 맨 끝의 카드였다. 거기까지 내려온 사람만 봤다.
+   탭으로 나눈 뒤엔 더 나빠질 뻔했다 — 탭 하나로 만들면 안 눌리는 방이 되고,
+   네 탭 공통 꼬리로 두면 같은 카드가 네 번 반복된다.
+   눕혀서 늘 보이게 두되 화면은 안 가린다. 결제하면 통째로 사라진다.
+   ══════════════════════════════════════════════════════ */
+.paybar {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
+  padding: .55rem 1rem calc(.55rem + env(safe-area-inset-bottom));
+  background: rgba(255, 255, 255, .94);
+  backdrop-filter: blur(12px);
+  border-top: 1px solid var(--line);
+  display: grid; gap: .25rem; justify-items: center;
+}
+.paybar-btn {
+  width: min(100%, 26rem);
+  display: flex; align-items: center; justify-content: space-between; gap: .8rem;
+  padding: .72rem 1rem;
+  border-radius: 11px;
+  background: linear-gradient(180deg, var(--gold-lit), var(--gold) 55%, var(--gold-deep));
+  color: var(--on-gold);
+  box-shadow: 0 .4rem 1rem rgba(94,74,34,.22);
+}
+.paybar-lead { font-size: .93rem; font-weight: 600; }
+.paybar-price { font-size: .84rem; white-space: nowrap; }
+.paybar-price b { font-weight: 700; }
+.paybar-note { font-size: .7rem; color: var(--paper-far); text-align: center; }
+
+/* 고정 바가 마지막 글을 덮지 않게 바닥을 그만큼 띄운다 */
+.report:has(~ .paybar:not(.hidden)) { padding-bottom: 7rem; }
+@supports not (selector(:has(*))) { .report { padding-bottom: 7rem; } }
+
+/* ── 재물 · 일 ─────────────────────────────────────────
+   본문은 장(章)과 같은 꼴이라 .cp 스타일을 그대로 쓴다.
+   조건에 따라 붙는 문단과 계산 근거만 여기서 따로 잡는다. */
+.rd-add { display: grid; gap: 1.15rem; margin-top: 1.15rem; }
+.rd-add p {
+  font-size: 1rem; line-height: 1.95; color: var(--paper);
+  text-wrap: pretty; word-break: keep-all;
+}
+.rd-basis {
+  margin-top: 1rem; padding-top: .7rem;
+  border-top: 1px dashed var(--line);
+  font-size: .78rem; line-height: 1.7; color: var(--paper-far);
+}

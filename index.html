@@ -179,6 +179,16 @@
       <div class="oheng" id="oheng"></div>
       <p class="oheng-foot" id="oheng-foot"></p>
     </section>
+
+    <!-- 재물 — 명식의 재성·식상·비겁을 실제로 계산해 쓴다 -->
+    <section class="rp-sec reveal" id="sec-wealth">
+      <div class="wealth" id="wealth"></div>
+    </section>
+
+    <!-- 일 — 식상(만드는 힘) 대 관성(맡는 힘) -->
+    <section class="rp-sec reveal" id="sec-work">
+      <div class="work" id="work"></div>
+    </section>
   </div>
 
   <!-- ── 인생 흐름 ── -->
@@ -201,52 +211,7 @@
     <section class="rp-sec reveal" id="sec-today">
       <div class="today" id="today"></div>
     </section>
-
-  <!-- 잠긴 문 -->
   </div><!-- /pane-today -->
-
-  <!-- ════════════════════════════════════════════════════
-       탭 아래 공통 꼬리 — 어느 탭에 있든 늘 붙는다.
-       잠긴 글 목록과 값을 탭 하나로 만들면 아무도 안 누르는 방이 된다.
-       ════════════════════════════════════════════════════ -->
-  <section class="rp-sec reveal" id="sec-locked">
-    <h3 class="sec-t">아직 열지 않은 것</h3>
-    <p class="sec-lead" id="locked-lead"></p>
-    <ul class="ch-list" id="ch-list"></ul>
-
-    <div class="unlock" id="unlock">
-      <div class="tier">
-        <div class="tier-head">
-          <span class="tier-name">달마다</span>
-          <b class="tier-price" id="unlock-price">4,900원</b>
-        </div>
-        <ul class="tier-list">
-          <li>매일의 운세를 가린 곳 없이 전부</li>
-          <li>아직 열지 않은 여덟 장</li>
-          <li>한 달에 한 번, 내 상황을 넣은 AI 상담</li>
-          <li>광고 없이</li>
-        </ul>
-        <button id="btn-unlock" class="btn-unlock">전부 열기</button>
-        <p class="unlock-note" id="unlock-note"></p>
-      </div>
-
-      <div class="tier tier-deep hidden">
-        <div class="tier-head">
-          <span class="tier-name">한 번에 제대로</span>
-          <b class="tier-price" id="deep-price">19,800원</b>
-        </div>
-        <p class="tier-lead">지금 상황을 자세히 알려주시면, 그 위에 명식을 얹어 따로 짚어드려요.
-          미리 지어둔 글이 아니라 이야기를 듣고 쓰는 풀이예요.</p>
-        <div class="tier-anchor">
-          <span>동네 점집 10~30만원</span>
-          <span>다른 사주 앱 3~8만원</span>
-        </div>
-        <button id="btn-deep" class="btn-ghost-gold">내 상황 일러주고 받아보기</button>
-        <a class="tier-see" href="deep.html">무엇을 받게 되는지 먼저 보기 →</a>
-        <p class="unlock-note" id="deep-note"></p>
-      </div>
-    </div>
-  </section>
 
   <!-- 상담 (뒷문) -->
   <section class="rp-sec reveal" id="sec-ask">
@@ -266,6 +231,22 @@
     <button id="btn-reset" class="btn-ghost">다른 사람 보기</button>
   </div>
 </section>
+
+<!-- ════════════════════════════════════════════════════════
+     값 — 화면 아래 한 줄.
+
+     예전엔 스크롤 맨 끝의 카드 하나였다. 거기까지 내려온 사람만 봤다.
+     탭으로 나눈 뒤로는 더 나빠질 뻔했다 — 탭 하나로 만들면 아무도 안 누르는 방이 되고,
+     네 탭 아래 공통 꼬리로 두면 같은 카드가 네 번 반복된다.
+     한 줄로 눕혀 늘 보이게 두되 화면은 안 가린다. 결제하면 사라진다.
+     ════════════════════════════════════════════════════════ -->
+<div class="paybar hidden" id="paybar">
+  <button type="button" id="btn-unlock" class="paybar-btn">
+    <span class="paybar-lead" id="paybar-lead">가려진 곳까지 전부 열기</span>
+    <span class="paybar-price">달마다 <b id="unlock-price">4,900원</b></span>
+  </button>
+  <p class="paybar-note" id="unlock-note"></p>
+</div>
 
 
 <!-- ════════════════════════════════════════════════════════

@@ -341,6 +341,35 @@ function main() {
     const d = Object.keys(db.longform.daeun).length;
     console.log(`  긴 글 — 기질 ${n}/40, 오늘 ${t}/10, 대운 ${d}/10`);
 
+    /* 재물과 일. 사용자가 "재물 이야기를 구체적으로" 라고 콕 집은 자리다.
+       기질·오늘·대운과 달리 조건에 따라 붙는 문단(wealthAddons)이 따로 있다 —
+       식상생재·비겁쟁재·신강·신약은 해당하는 사람에게만 나가야 해서 본문에 못 넣는다. */
+    const WW = path.join(ROOT, 'tools', 'wealth_work_source.json');
+    if (fs.existsSync(WW)) {
+      const ww = JSON.parse(fs.readFileSync(WW, 'utf8'));
+      db.longform.wealth = {};
+      db.longform.work = {};
+      (ww.wealth || []).forEach((x) => { db.longform.wealth[x.key] = strip(x, ['key']); });
+      (ww.work || []).forEach((x) => { db.longform.work[x.key] = strip(x, ['key']); });
+      if (ww.addons) db.longform.wealthAddons = ww.addons;
+
+      const wn = Object.keys(db.longform.wealth).length;
+      const kn = Object.keys(db.longform.work).length;
+      console.log(`  긴 글 — 재물 ${wn}/9, 일 ${kn}/15`);
+
+      /* 앞 절반은 강점과 기회만 쓰기로 했다. 거기 부정어가 들어가면 규칙이 깨진다.
+         읽고 기분이 좋아야 가려진 쪽이 궁금해지기 때문이다. */
+      const NEG = /(다만|하지만|그러나|문제는|아쉽게도|안타깝게)/;
+      let neg = 0;
+      for (const box of [db.longform.wealth, db.longform.work]) {
+        for (const [k, ch] of Object.entries(box)) {
+          const free = (ch.paras || []).slice(0, ch.cutAt || 2).join(' ');
+          if (NEG.test(free)) { neg++; console.warn(`  ! ${k} — 무료 구간에 부정어가 있다`); }
+        }
+      }
+      if (!neg) console.log('  무료 구간 부정어 0건');
+    }
+
     /* 물상 명사를 슬롯 대신 본문에 박아둔 자리가 있으면 잡는다.
        그러면 나중에 물상 문구를 손볼 때 그 장만 어긋난다. */
     const NOUNS = Object.values(db.nouns).map((x) => x.noun);
