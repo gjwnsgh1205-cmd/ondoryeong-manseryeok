@@ -368,6 +368,41 @@ function main() {
         }
       }
       if (!neg) console.log('  무료 구간 부정어 0건');
+
+      /* 틀이 반복되는 걸 사람이 눈으로 잡기 어렵다.
+         실제로 세 판을 도는 동안 이런 게 나왔다 —
+           일 15편이 전부 "오래 보면" 으로 마지막 문단을 열었고(15/15 축자 동일),
+           재물 9편 제목이 전부 "~는 사람" 으로 끝났고,
+           약점 문단이 10/15편에서 "힘이 반만 나와요" 로 같았다.
+         한 편만 읽으면 안 걸리지만 두 편을 나란히 놓는 순간 조합해 만든 티가 난다.
+         그래서 세는 일을 코드에 맡긴다. */
+      const variety = (name, arr, pick, floor) => {
+        const n = new Set(arr.map(pick)).size;
+        const tag = n < floor ? '!' : ' ';
+        console.log(`  ${tag} ${name} ${n}/${arr.length}가지${n < floor ? ` (${floor} 미만이면 틀이 보인다)` : ''}`);
+        return n >= floor;
+      };
+      const W = Object.entries(db.longform.wealth).map(([k, v]) => ({ key: k, ...v }));
+      const K = Object.entries(db.longform.work).map(([k, v]) => ({ key: k, ...v }));
+      const head = (s) => String(s || '').split(/(?<=[.!?])\s+/)[0];
+      const tail = (x) => x.paras[x.paras.length - 1];
+
+      variety('재물 제목 끝', W, (x) => x.title.slice(-3), 6);
+      variety('일 첫 문장', K, (x) => head(x.paras[0]).slice(0, 12), 10);
+      variety('일 마지막 문단 첫 어절', K, (x) => tail(x).slice(0, 5), 10);
+      variety('일 약점 문단 첫 문장', K, (x) => head(x.paras[2]).slice(0, 12), 10);
+
+      /* 한 사람이 한 화면에서 재물 1편과 일 1편을 나란히 읽는다.
+         두 곳에 똑같은 문장이 있으면 바로 눈에 띈다. */
+      const sents = [...W, ...K].flatMap((x) => x.paras.join(' ')
+        .split(/(?<=[.!?])\s+/).map((s) => s.trim()).filter((s) => s.length > 18));
+      const cnt = {};
+      sents.forEach((s) => { cnt[s] = (cnt[s] || 0) + 1; });
+      const dup = Object.entries(cnt).filter(([, v]) => v > 1);
+      if (dup.length) {
+        console.warn(`  ! 두 곳 이상에 똑같은 문장 ${dup.length}건`);
+        dup.slice(0, 3).forEach(([s]) => console.warn(`      ${s.slice(0, 46)}…`));
+      } else console.log('    겹치는 문장 0건');
     }
 
     /* 물상 명사를 슬롯 대신 본문에 박아둔 자리가 있으면 잡는다.
