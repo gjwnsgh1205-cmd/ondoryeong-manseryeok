@@ -1,4 +1,5 @@
 .gstack/
 .context/
 dist/
+dist.tmp/
 _docs.tmp/
