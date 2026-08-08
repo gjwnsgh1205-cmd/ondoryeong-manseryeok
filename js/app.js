@@ -7,7 +7,7 @@
   const E = Manse.ELEMENTS;
   const EL_COLORS = ['var(--el-wood)', 'var(--el-fire)', 'var(--el-earth)', 'var(--el-metal)', 'var(--el-water)'];
 
-  let lastResult = null; // { chart, counsel, age }
+  let lastResult = null; // { chart, counsel, age, ageMonths }
 
   // ---------- 유틸 ----------
   function koreanAge(y, m, d) {
@@ -76,10 +76,16 @@
     const counsel = Counsel.concernCards(chart, age, ageMonths);
     lastResult = { chart, counsel, age, ageMonths };
 
-    renderAll(chart, counsel, age, ageMonths);
-    $('#input-section').classList.add('hidden');
-    $('#result-section').classList.remove('hidden');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    // 도령이 만세력을 넘기는 연출 후 결과 공개
+    const overlay = $('#loading-overlay');
+    overlay.classList.remove('hidden');
+    setTimeout(() => {
+      renderAll(chart, counsel, age, ageMonths);
+      $('#input-section').classList.add('hidden');
+      $('#result-section').classList.remove('hidden');
+      overlay.classList.add('hidden');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }, 1150);
   });
 
   $('#btn-again').addEventListener('click', () => {
@@ -105,15 +111,16 @@
   }
 
   function renderToday(chart) {
+    // 도령 말풍선: 풀이 도입 + 오늘의 한 마디
     const t = Counsel.todayMessage(chart);
-    $('#today-card').innerHTML = `
-      <div class="today-ganji">${t.iljin.stemInfo.han}${t.iljin.branchInfo.han}
-        <small>오늘 · ${t.iljin.stemInfo.kor}${t.iljin.branchInfo.kor}일</small>
-      </div>
-      <div class="today-body">
-        <h3>오늘의 한 마디 · ${esc(t.sip)}의 날</h3>
-        <p>${esc(t.msg)}</p>
-      </div>`;
+    const grp = Manse.SIPSEONG_GROUP[t.sip];
+    $('#dr-result-avatar').innerHTML = Doryeong.svg(104);
+    $('#dr-close-avatar').innerHTML = Doryeong.svg(88);
+    $('#dr-intro').innerHTML = `<span class="dr-name">온도령</span>` + esc(Doryeong.resultIntro(chart));
+    $('#dr-today').innerHTML =
+      `오늘은 <b>${t.iljin.stemInfo.han}${t.iljin.branchInfo.han}(${esc(t.iljin.stemInfo.kor + t.iljin.branchInfo.kor)})일</b>, ` +
+      `자네에게 <b>${esc(t.sip)}</b>의 날이구먼.\n${esc(Doryeong.todayLine(grp))}`;
+    $('#dr-closing').innerHTML = `<span class="dr-name">온도령</span>` + esc(Doryeong.CLOSING);
   }
 
   function renderPillars(chart) {
@@ -272,4 +279,12 @@
     tabs.querySelector('.tab').classList.add('active');
     show('mind');
   }
+
+  // ---------- 도령 초기 렌더 (모든 정의 이후 실행) ----------
+  $('#dr-hero').innerHTML = Doryeong.svg(190);
+  $('#dr-loading').innerHTML = Doryeong.svg(120);
+  $('#dr-greet').innerHTML = `<span class="dr-name">온도령</span>` + esc(Doryeong.GREET);
+  document.querySelectorAll('.dr-bridge').forEach(el => {
+    el.textContent = Doryeong.BRIDGES[el.dataset.bridge] || '';
+  });
 })();
