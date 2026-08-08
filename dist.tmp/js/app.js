@@ -408,7 +408,4 @@
     el.textContent = Doryeong.BRIDGES[el.dataset.bridge] || '';
   });
   playIn($('#input-section')); // 로딩 오버레이 컷은 열릴 때 켠다
-
-  // 단일 파일 번들에서는 영상이 첫 페인트 뒤에 붙는다. 도착하면 보이는 컷부터 돌린다.
-  document.addEventListener('doryeong:videos-ready', () => playIn(activeSection()));
 })();

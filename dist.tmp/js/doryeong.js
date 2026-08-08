@@ -14,29 +14,8 @@ const Doryeong = (() => {
 
   // 단일 파일 번들(tools/build_single.py)에서는 에셋이 data: URI로 인라인된다.
   // 그때는 전역 DR_ASSETS가 경로→data URI 표를 들고 있고, 아니면 경로를 그대로 쓴다.
-  const bundled = () => typeof DR_ASSETS !== 'undefined';
-  const asset = (path) => (bundled() && DR_ASSETS[path]) ? DR_ASSETS[path] : path;
-
-  /**
-   * 번들에서는 영상을 첫 페인트 뒤에 붙인다. 무거운 base64가 초기 렌더를 막지 않게 하려는 것이다.
-   * 그 전까지는 poster가 그대로 보이므로 화면이 비지 않는다.
-   * @param {Object} map {kind: dataURI}
-   */
-  let videoMap = null;   // 부착 이후에 만들어지는 컷(결과·맺음말)도 여기서 소스를 얻는다
-
-  function attachVideos(map) {
-    videoMap = map;
-    document.querySelectorAll('video.dr-media[data-kind]').forEach(v => {
-      const uri = map[v.dataset.kind];
-      if (!uri || v.querySelector('source')) return;
-      const s = document.createElement('source');
-      s.type = 'video/mp4';
-      s.src = uri;
-      v.appendChild(s);
-      v.load();
-    });
-    document.dispatchEvent(new CustomEvent('doryeong:videos-ready'));
-  }
+  const asset = (path) =>
+    (typeof DR_ASSETS !== 'undefined' && DR_ASSETS[path]) ? DR_ASSETS[path] : path;
 
   /**
    * 캐릭터 미디어 — 움직이는 컷(mp4)이 있으면 그걸, 없으면 정지 일러스트(png)로 자연스럽게 내려간다.
@@ -47,7 +26,7 @@ const Doryeong = (() => {
   function media(o = {}) {
     const kind = o.kind || 'idle';
     const png = asset(`assets/web/doryeong-${kind}.png`);
-    const mp4 = (videoMap && videoMap[kind]) || asset(`assets/video/doryeong-${kind}.mp4`);
+    const mp4 = asset(`assets/video/doryeong-${kind}.mp4`);
     const loop = o.loop !== false;
     const label = o.label || '';
     const a11y = label ? `role="img" aria-label="${label}"` : 'aria-hidden="true"';
@@ -58,12 +37,9 @@ const Doryeong = (() => {
     const still = `<img class="dr-still" src="${png}" alt="${label}" ${label ? '' : 'aria-hidden="true"'}>`;
 
     // autoplay를 붙이지 않는다 — 재생은 app.js가 화면 상태에 맞춰 직접 켜고 끈다.
-    // 번들에서 영상이 아직 안 왔으면 <source> 없이 두고 attachVideos()가 나중에 채운다.
-    const src = (!bundled() || mp4.startsWith('data:'))
-      ? `<source src="${mp4}" type="video/mp4">` : '';
     const video = `<video class="dr-media" ${a11y}
       muted playsinline ${loop ? 'loop' : ''} preload="none" poster="${poster}"
-      data-kind="${kind}" data-loop="${loop}">${src}</video>`;
+      data-kind="${kind}" data-loop="${loop}"><source src="${mp4}" type="video/mp4"></video>`;
 
     return `<div class="dr-frame ${o.cls || ''}">${still}${video}</div>`;
   }
@@ -218,7 +194,7 @@ const Doryeong = (() => {
   function resultIntro(chart) { return INTRO_BY_STEM[chart.dayStem]; }
   function todayLine(sipGroup) { return TODAY[sipGroup] || TODAY['인성']; }
 
-  return { svg, media, attachVideos, GREET, LOADING, BRIDGES, CLOSING, EL_LABEL, resultIntro, todayLine };
+  return { svg, media, GREET, LOADING, BRIDGES, CLOSING, EL_LABEL, resultIntro, todayLine };
 })();
 
 if (typeof module !== 'undefined') module.exports = Doryeong;
