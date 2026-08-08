@@ -13,30 +13,33 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 DIST = ROOT / "dist"
 
-FILES = ["index.html", "README.md"]
+REQUIRED_FILES = ["index.html"]
+OPTIONAL_FILES = ["README.md"]
 DIRS = ["css", "js", "assets/web", "assets/video"]
 
 
 def main():
-    if DIST.exists():
-        shutil.rmtree(DIST)
-    DIST.mkdir()
+    # 1) 먼저 전부 검증한다. 입력이 하나라도 없으면 기존 dist/ 는 손대지 않는다.
+    missing = [p for p in REQUIRED_FILES + DIRS if not (ROOT / p).exists()]
+    if missing:
+        raise SystemExit("필수 입력 없음: " + ", ".join(missing))
 
-    for f in FILES:
+    # 2) 임시 디렉터리에 완성한 뒤에야 dist/ 와 교체한다.
+    staging = ROOT / "dist.tmp"
+    if staging.exists():
+        shutil.rmtree(staging)
+    staging.mkdir()
+
+    for f in REQUIRED_FILES + OPTIONAL_FILES:
         src = ROOT / f
         if src.exists():
-            shutil.copy2(src, DIST / src.name)
-
-    missing = []
+            shutil.copy2(src, staging / src.name)
     for d in DIRS:
-        src = ROOT / d
-        if not src.exists():
-            missing.append(d)
-            continue
-        shutil.copytree(src, DIST / d, dirs_exist_ok=True)
+        shutil.copytree(ROOT / d, staging / d, dirs_exist_ok=True)
 
-    if missing:
-        raise SystemExit("필수 디렉터리 없음: " + ", ".join(missing))
+    if DIST.exists():
+        shutil.rmtree(DIST)
+    staging.replace(DIST)
 
     total = sum(p.stat().st_size for p in DIST.rglob("*") if p.is_file())
     count = sum(1 for p in DIST.rglob("*") if p.is_file())

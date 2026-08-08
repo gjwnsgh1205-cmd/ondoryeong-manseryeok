@@ -19,6 +19,28 @@ VIDEO_WIDTH = 480    # 표시 폭 210px의 약 2배 + 여유
 PNG_WIDTH = 520      # poster/폴백용
 
 
+def is_faststart(path: Path) -> bool:
+    """MP4 최상위 atom을 훑어 moov가 mdat보다 앞에 있는지 본다 (재생 즉시 시작 여부)."""
+    with open(path, "rb") as f:
+        while True:
+            head = f.read(8)
+            if len(head) < 8:
+                return False
+            size = int.from_bytes(head[:4], "big")
+            kind = head[4:8]
+            if kind == b"moov":
+                return True
+            if kind == b"mdat":
+                return False
+            if size == 1:              # 64비트 확장 크기
+                size = int.from_bytes(f.read(8), "big")
+                f.seek(size - 16, 1)
+            elif size == 0:            # 파일 끝까지
+                return False
+            else:
+                f.seek(size - 8, 1)
+
+
 def optimize_videos():
     ffmpeg = shutil.which("ffmpeg")
     ffprobe = shutil.which("ffprobe")
@@ -35,7 +57,15 @@ def optimize_videos():
             codec, w, pix = info[0], info[1], info[2]
             # 폭·코덱·픽셀포맷이 모두 목표치면 재인코딩할 이유가 없다
             if w.isdigit() and int(w) <= VIDEO_WIDTH and codec == "h264" and pix == "yuv420p":
-                print(f"{src.name}: 이미 {w}px {codec}/{pix} — 건너뜀")
+                if is_faststart(src):
+                    print(f"{src.name}: 이미 {w}px {codec}/{pix} faststart. 건너뜀")
+                    continue
+                # 화질은 그대로 두고 moov 위치만 앞으로 옮긴다 (무손실)
+                tmp = src.with_suffix(".tmp.mp4")
+                subprocess.run([ffmpeg, "-v", "error", "-y", "-i", str(src),
+                                "-c", "copy", "-movflags", "+faststart", str(tmp)], check=True)
+                tmp.replace(src)
+                print(f"{src.name}: faststart 재배치 (무손실)")
                 continue
         tmp = src.with_suffix(".tmp.mp4")
         before = src.stat().st_size

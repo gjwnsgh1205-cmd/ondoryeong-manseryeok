@@ -16,19 +16,34 @@
   const scrollBehavior = () => (REDUCED ? 'auto' : 'smooth');
 
   // ---------- 캐릭터 영상 재생 제어 ----------
-  // 영상에는 autoplay를 걸지 않는다. 화면에 실제로 보이는 컷만 재생하고,
-  // 한 번짜리 컷(reveal·bow)은 화면에 들어올 때 처음부터 튼다.
-  const seen = new WeakSet();
+  // 영상에는 autoplay를 걸지 않는다. 지금 화면에 보이는 컷만 재생한다.
+  // 반복 컷(idle·reading)은 영역이 열릴 때 돌고, 일회성 컷(reveal·bow)은
+  // 뷰포트에 들어온 순간 한 번 돈다.
+  const started = new WeakSet();   // 재생을 시작한 일회성 컷
+  const inView = new WeakSet();    // 지금 뷰포트 안에 있는 일회성 컷
+
+  // 지금 사용자에게 보이는 영역. 로딩 오버레이가 최우선이다.
+  function activeSection() {
+    if (isLoading) return $('#loading-overlay');
+    return $('#result-section').classList.contains('hidden') ? $('#input-section') : $('#result-section');
+  }
+
+  function playVideo(v) {
+    if (REDUCED) return;
+    v.play().catch(() => { /* 자동재생 차단 시 poster가 남는다 */ });
+  }
 
   function playIn(root) {
-    if (!root) return;
+    if (!root || REDUCED) return;
     root.querySelectorAll('video.dr-media').forEach(v => {
-      if (REDUCED) { v.pause(); return; }
       if (v.dataset.loop === 'false') {
-        if (seen.has(v)) return;   // 일회성 컷은 화면에 들어왔을 때 관찰자가 튼다
+        // 일회성 컷은 보일 때만. 아직 안 튼 것은 처음부터, 튼 것은 이어서.
+        if (!inView.has(v)) return;
+        if (!started.has(v)) { started.add(v); v.currentTime = 0; }
+        playVideo(v);
         return;
       }
-      v.play().catch(() => { /* 자동재생 차단 시 정지 이미지가 남는다 */ });
+      playVideo(v);
     });
   }
 
@@ -37,31 +52,38 @@
     root.querySelectorAll('video.dr-media').forEach(v => v.pause());
   }
 
-  // 일회성 컷: 뷰포트에 들어온 순간 한 번 재생
   const onceObserver = ('IntersectionObserver' in window)
     ? new IntersectionObserver((entries) => {
         for (const e of entries) {
-          if (!e.isIntersecting || REDUCED) continue;
           const v = e.target;
-          if (seen.has(v)) continue;
-          seen.add(v);
+          if (!e.isIntersecting) { inView.delete(v); continue; }
+          inView.add(v);
+          if (REDUCED) continue;          // 감속 해제 시 playIn이 집어간다
+          if (started.has(v)) { playVideo(v); continue; }
+          started.add(v);
           v.currentTime = 0;
-          v.play().catch(() => {});
-          onceObserver.unobserve(v);
+          playVideo(v);
         }
       }, { threshold: 0.35 })
     : null;
 
+  // 이전 결과의 일회성 컷 관찰을 끊는다 — 결과를 다시 그릴 때 DOM이 통째로 교체되므로
+  // 해제하지 않으면 분리된 video 요소가 관찰 목록에 쌓인다.
+  let observedOnce = [];
   function registerOnce(root) {
-    if (!root || !onceObserver) return;
-    root.querySelectorAll('video.dr-media[data-loop="false"]').forEach(v => onceObserver.observe(v));
+    if (!onceObserver) return;
+    observedOnce.forEach(v => { onceObserver.unobserve(v); inView.delete(v); started.delete(v); });
+    observedOnce = [];
+    if (!root) return;
+    observedOnce = Array.from(root.querySelectorAll('video.dr-media[data-loop="false"]'));
+    observedOnce.forEach(v => onceObserver.observe(v));
   }
 
   if (motionQuery && motionQuery.addEventListener) {
     motionQuery.addEventListener('change', (e) => {
       REDUCED = e.matches;
       if (REDUCED) pauseIn(document);
-      else playIn(document.querySelector('#result-section.hidden') ? $('#input-section') : $('#result-section'));
+      else playIn(activeSection());
     });
   }
 
@@ -170,6 +192,7 @@
     cancelReveal();
     $('#result-section').classList.add('hidden');
     pauseIn($('#result-section'));
+    registerOnce(null);            // 아직 못 본 맺음말 컷의 관찰을 끊는다
     $('#input-section').classList.remove('hidden');
     playIn($('#input-section'));
     window.scrollTo({ top: 0, behavior: scrollBehavior() });
