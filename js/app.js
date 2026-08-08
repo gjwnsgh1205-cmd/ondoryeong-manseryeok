@@ -86,9 +86,9 @@
   // 폼에 적힌 값을 실제 계산에 쓸 양력 날짜로 정리한다.
   function readBirth() {
     const y = num($('f-year')), m = num($('f-month')), d = num($('f-day'));
-    if (y == null || m == null || d == null) return { err: '태어난 해와 달과 날을 모두 적어주시게.' };
-    if (m < 1 || m > 12) return { err: '달은 1에서 12 사이라네.' };
-    if (d < 1 || d > 31) return { err: '날은 1에서 31 사이라네.' };
+    if (y == null || m == null || d == null) return { err: '태어난 해와 달과 날을 모두 적어주세요.' };
+    if (m < 1 || m > 12) return { err: '달은 1에서 12 사이예요.' };
+    if (d < 1 || d > 31) return { err: '날은 1에서 31 사이예요.' };
 
     const lunar = calMode() === 'lunar';
     const leap = lunar && $('f-leap').checked;
@@ -98,20 +98,20 @@
       const conv = lunarToSolar(y, m, d, leap);
       if (!conv) {
         return { err: leap
-          ? `음력 ${y}년 ${m}월에는 윤달이 없다네. 윤달 표시를 풀고 다시 보시게.`
-          : `음력 ${y}년 ${m}월 ${d}일은 없는 날이라네. 다시 확인해 주시겠나.` };
+          ? `음력 ${y}년 ${m}월에는 윤달이 없어요. 윤달 표시를 풀고 다시 해보세요.`
+          : `음력 ${y}년 ${m}월 ${d}일은 없는 날이에요. 다시 확인해 주세요.` };
       }
       sol = conv;
     } else {
       // 양력은 실제로 있는 날인지 확인 (2월 30일 같은 것)
       const t = new Date(Date.UTC(y, m - 1, d));
       if (t.getUTCFullYear() !== y || t.getUTCMonth() !== m - 1 || t.getUTCDate() !== d) {
-        return { err: `${y}년 ${m}월 ${d}일은 없는 날이라네.` };
+        return { err: `${y}년 ${m}월 ${d}일은 없는 날이에요.` };
       }
     }
 
     if (sol.year < 1900 || sol.year > 2050) {
-      return { err: '지금은 1900년부터 2050년까지만 볼 수 있다네.' };
+      return { err: '지금은 1900년부터 2050년까지만 볼 수 있어요.' };
     }
 
     // 비워두면 조용히 정오로 잡아버리면 안 된다. 시주가 통째로 달라지는데
@@ -119,20 +119,20 @@
     const unknownTime = $('f-unknown-time').checked;
     const rawH = num($('f-hour')), rawM = num($('f-minute'));
     if (!unknownTime && (rawH == null || rawM == null)) {
-      return { err: '태어난 시각을 적어주시게. 모르신다면 아래 "태어난 시각은 모른다네"에 표시해 주시게.' };
+      return { err: '태어난 시각을 적어주세요. 모르시면 아래 "태어난 시각을 몰라요"에 표시해 주세요.' };
     }
     const hh = unknownTime ? 12 : rawH;
     const mm = unknownTime ? 0 : rawM;
     if (!unknownTime) {
-      if (hh < 0 || hh > 23) return { err: '시각은 0시에서 23시 사이라네.' };
-      if (mm < 0 || mm > 59) return { err: '분은 0에서 59 사이라네.' };
+      if (hh < 0 || hh > 23) return { err: '시각은 0시에서 23시 사이예요.' };
+      if (mm < 0 || mm > 59) return { err: '분은 0에서 59 사이예요.' };
     }
 
     // 아직 오지 않은 날은 명식을 세울 수 없다.
     // 지금까지는 나이가 0개월로 눌려 멀쩡한 리포트가 나왔다.
     const bornKST = Date.UTC(sol.year, sol.month - 1, sol.day, hh, mm) - 9 * 3600 * 1000;
     if (bornKST > Date.now()) {
-      return { err: '아직 오지 않은 날일세. 태어난 날을 다시 확인해 주시겠나.' };
+      return { err: '아직 오지 않은 날이에요. 태어난 날을 다시 확인해 주세요.' };
     }
 
     const g = document.querySelector('input[name="gender"]:checked');
@@ -160,8 +160,8 @@
     const conv = lunarToSolar(y, m, d, $('f-leap').checked);
     note.classList.remove('hidden');
     note.textContent = conv
-      ? `양력으로는 ${conv.year}년 ${conv.month}월 ${conv.day}일이라네.`
-      : '그런 음력 날짜는 없다네. 윤달 표시도 함께 살펴보시게.';
+      ? `양력으로는 ${conv.year}년 ${conv.month}월 ${conv.day}일이에요.`
+      : '그런 음력 날짜는 없어요. 윤달 표시도 함께 확인해 주세요.';
   }
 
   /* ══════════════════════════════════════════════════════
@@ -246,11 +246,11 @@
   function doryeongSay(e) {
     const m = (e && e.message) || '';
     if (m.includes('서머타임')) {
-      return '그날은 서머타임이 시작되면서 그 시각이 통째로 건너뛰어졌다네. '
-           + '실제로 없던 시각이니, 출생 기록을 한 번 더 살펴봐 주시겠나.';
+      return '그날은 서머타임이 시작되면서 그 시각이 통째로 건너뛰어졌어요. '
+           + '실제로 없던 시각이라, 출생 기록을 한 번 더 확인해 주세요.';
     }
-    if (m.includes('지원 범위')) return '지금은 1900년부터 2050년까지만 볼 수 있다네.';
-    return '명식을 세우지 못했다네. 적어주신 날짜를 다시 살펴봐 주시겠나.';
+    if (m.includes('지원 범위')) return '지금은 1900년부터 2050년까지만 볼 수 있어요.';
+    return '명식을 세우지 못했어요. 적어주신 날짜를 다시 확인해 주세요.';
   }
 
   const VEIL_LINES = ['어디 보자…', '절기를 짚어보는 중이네', '여덟 글자가 잡혔네'];
@@ -331,12 +331,12 @@
 
     const m = rp.chart.meta;
     const notes = [];
-    notes.push(`${m.sajuYear}년 ${esc(m.monthTerm)} 절입 이후에 태어나셨네.`);
-    if (m.assumedNoon) notes.push('시각을 모르니 시주는 비워두었네. 나머지 여섯 글자만으로도 결은 읽힌다네.');
-    if (m.tzOffsetMin !== 540) notes.push(`태어난 해의 표준시가 지금과 달라(UTC+${(m.tzOffsetMin / 60).toFixed(1)}) 그만큼 보정했네.`);
-    if (m.boundaryWarning) notes.push(`절기(${esc(m.nearestTermName)})가 드는 시각과 ${m.nearestTermMin}분 차이라네. 태어난 시각이 조금만 달라도 기둥이 바뀌니, 출생 기록을 한 번 확인해 보시게.`);
-    else if (m.termDayWarning) notes.push(`절입일(${esc(m.nearestTermName)}) 근처에 태어나셨네. 정확한 시각을 알면 더 또렷해진다네.`);
-    if (!m.precise) notes.push('천문 계산 라이브러리를 불러오지 못해 근사식으로 절기를 잡았네. 경계에 가까운 분은 오차가 있을 수 있다네.');
+    notes.push(`${m.sajuYear}년 ${esc(m.monthTerm)} 절입 이후에 태어나셨어요.`);
+    if (m.assumedNoon) notes.push('시각을 몰라 시주는 비워뒀어요. 나머지 여섯 글자만으로도 큰 결은 읽혀요.');
+    if (m.tzOffsetMin !== 540) notes.push(`태어난 해의 표준시가 지금과 달라(UTC+${(m.tzOffsetMin / 60).toFixed(1)}) 그만큼 보정했어요.`);
+    if (m.boundaryWarning) notes.push(`절기(${esc(m.nearestTermName)})가 드는 시각과 ${m.nearestTermMin}분 차이예요. 태어난 시각이 조금만 달라도 기둥이 바뀌니 출생 기록을 한 번 확인해 보세요.`);
+    else if (m.termDayWarning) notes.push(`절입일(${esc(m.nearestTermName)}) 근처에 태어나셨어요. 정확한 시각을 알면 더 또렷해져요.`);
+    if (!m.precise) notes.push('천문 계산 라이브러리를 불러오지 못해 근사식으로 절기를 잡았어요. 경계에 가까우면 오차가 있을 수 있어요.');
     $('board-foot').innerHTML = notes.map(esc).join('<br>');
   }
 
@@ -346,7 +346,7 @@
     const parts = [];
     if (t.body) parts.push(`<p class="nature-body">${esc(t.body)}</p>`);
     // 구체적인 장면 하나가 "어떻게 알았지" 하고 멈칫하게 만든다
-    if (t.example) parts.push(`<p class="nature-eg"><i>이런 식이지</i>${esc(t.example)}</p>`);
+    if (t.example) parts.push(`<p class="nature-eg"><i>이런 식이에요</i>${esc(t.example)}</p>`);
     parts.push(`<div class="nature-pair">`);
     if (t.strengthLine) {
       parts.push(`<div class="np" style="--npc:var(--el-0)">
@@ -414,9 +414,9 @@
     const maxI = el.indexOf(Math.max(...el));
     const none = el.map((v, i) => (v < 0.35 ? i : -1)).filter((i) => i >= 0);
     const L = (i) => `${Manse.ELEMENTS[i].han}(${Manse.ELEMENTS[i].kor})`;
-    let s = `자네에게 가장 두꺼운 기운은 ${L(maxI)}일세.`;
-    if (none.length) s += ` 반대로 ${none.map(L).join('과 ')}은 거의 비어 있네. 없는 기운은 대개 밖에서 구하게 되지 — 사람에게서든, 일에서든.`;
-    else s += ' 크게 빈 자리가 없으니, 어느 쪽으로든 무리 없이 뻗을 수 있는 명식이네.';
+    let s = `가장 두꺼운 기운은 ${L(maxI)}이에요.`;
+    if (none.length) s += ` 반대로 ${none.map(L).join('과 ')}은 거의 비어 있어요. 없는 기운은 대개 밖에서 구하게 돼요 — 사람에게서든, 일에서든.`;
+    else s += ' 크게 빈 자리가 없어서, 어느 쪽으로든 무리 없이 뻗을 수 있는 명식이에요.';
     $('oheng-foot').textContent = s;
   }
 
@@ -535,10 +535,10 @@
         <span class="cn-label">${esc(p.label)}</span>
       </div>
       ${p.line ? `<p class="cn-line">${esc(p.line)}</p>` : ''}
-      ${p.example ? `<p class="cn-eg"><i>이런 식이지</i>${esc(p.example)}</p>` : ''}
+      ${p.example ? `<p class="cn-eg"><i>이런 식이에요</i>${esc(p.example)}</p>` : ''}
       ${p.advice ? `<p class="cn-advice">${esc(p.advice)}</p>` : ''}
       ${rp.current.status === 'after' && i === rp.current.idx
-        ? `<p class="cn-advice">여기까지가 이 만세력이 세워둔 아홉 마디일세. 자네는 그 너머를 걸어오셨네.</p>` : ''}`;
+        ? `<p class="cn-advice">여기까지가 이 만세력이 세워둔 아홉 마디예요. 그 너머를 걸어오셨네요.</p>` : ''}`;
   }
 
   /* ── 오늘 ─────────────────────────────────────────────────
@@ -688,8 +688,8 @@
       </div>` : ''}
 
       <div class="td-acts">
-        ${t.doThis ? `<div class="td-act"><i>해보시게</i><span>${esc(t.doThis)}</span></div>` : ''}
-        ${t.avoid ? `<div class="td-act is-hold"><i>미뤄두게</i><span>${show(t.avoid, '오늘 미뤄둘 일')}</span></div>` : ''}
+        ${t.doThis ? `<div class="td-act"><i>해보세요</i><span>${esc(t.doThis)}</span></div>` : ''}
+        ${t.avoid ? `<div class="td-act is-hold"><i>미뤄두세요</i><span>${show(t.avoid, '오늘 미뤄둘 일')}</span></div>` : ''}
       </div>
 
       ${t.watchFor ? `<p class="td-watch"><i>걸리기 쉬운 자리</i>${show(t.watchFor, '걸리기 쉬운 자리')}</p>` : ''}
@@ -743,8 +743,8 @@
     const list = rp.chapters;
     const openN = list.filter((c) => c.open).length;
     $('locked-lead').textContent = opened()
-      ? `${list.length}가지 모두 열려 있네. 천천히 읽어보시게.`
-      : `모두 ${list.length}가지를 짚었는데, 지금 읽으실 수 있는 건 ${openN}가지라네.`;
+      ? `${list.length}가지 모두 열려 있어요. 천천히 읽어보세요.`
+      : `모두 ${list.length}가지를 짚었는데, 지금 읽으실 수 있는 건 ${openN}가지예요.`;
 
     $('ch-list').innerHTML = list.map((c) => {
       const to = CH_ANCHOR[c.id];
@@ -752,7 +752,7 @@
         <span class="ch-body">
           <span class="ch-group">${esc(c.group)}</span>
           <span class="ch-title">${maskTitle(c.title, c.open)}</span>
-          <span class="ch-teaser">${esc(c.teaser)}${to ? ' · 위에서 이미 펼쳐두었네' : ''}</span>
+          <span class="ch-teaser">${esc(c.teaser)}${to ? ' · 위에서 이미 펼쳐뒀어요' : ''}</span>
         </span>`;
       const mark = `<span class="ch-mark" aria-hidden="true">${c.open ? '✦' : '⌾'}</span>`;
       return to
@@ -770,10 +770,10 @@
     $('unlock-price').textContent = SUB_PRICE.toLocaleString('ko-KR') + '원';
     $('deep-price').textContent = DEEP_PRICE.toLocaleString('ko-KR') + '원';
     $('deep-note').textContent = ent.deep
-      ? '이미 받아두셨네. 상담 화면에서 이어 물으시게.'
-      : '한 번 받으면 30일 동안 몇 번이든 이어 물을 수 있다네. 결제는 아직 붙이는 중일세.';
+      ? '이미 받으셨어요. 상담 화면에서 이어서 물어보세요.'
+      : '한 달에 한 번, 시작하면 그 자리에서 몇 번이든 이어 물을 수 있어요. 결제는 아직 붙이는 중이에요.';
     $('unlock-note').textContent =
-      '결제는 아직 붙이는 중이라 지금은 눌러도 그냥 열리네. 언제든 끊을 수 있고, 끊어도 그달 끝까지는 볼 수 있다네.';
+      '결제는 아직 붙이는 중이라 지금은 눌러도 그냥 열려요. 언제든 끊을 수 있고, 끊어도 그달 끝까지는 볼 수 있어요.';
     $('btn-unlock').textContent = `달마다 ${SUB_PRICE.toLocaleString('ko-KR')}원으로 전부 열기`;
   }
 
@@ -803,8 +803,8 @@
     const lead = document.querySelector('#sec-today .rp-lead');
     if (num) num.textContent = on ? '' : '五';
     if (lead) lead.textContent = on
-      ? '어제와 다른 하루일세. 아래로 내려가면 자네 사주 풀이도 그대로 있네.'
-      : '날마다 바뀌는 것이니, 내일 다시 와서 보시게.';
+      ? '어제와 다른 하루예요. 아래로 내려가면 사주 풀이도 그대로 있어요.'
+      : '날마다 바뀌니 내일 다시 와서 보세요.';
   }
 
   function renderReport() {
@@ -944,7 +944,7 @@
     }
 
     const open = Cs.opening ? Cs.opening(session) : null;
-    say('dr', open || `${rp.type.name}. 자네 명식은 그리 읽히네. 무엇이 마음에 걸려 왔는가.`);
+    say('dr', open || `${rp.type.name}. 명식은 그렇게 읽혀요. 무엇이 마음에 걸리시나요?`);
     syncTurns();
   }
 
@@ -954,7 +954,7 @@
     if (!t) return;
     // 세션이 들고 있는 건 id 가 아니라 주제 객체다
     if (session) session.topic = t;
-    say('dr', t.probe || '그 얘기를 좀 더 들려주시게.');
+    say('dr', t.probe || '그 이야기를 좀 더 들려주세요.');
     syncTurns();
   }
 
@@ -982,12 +982,12 @@
     const Cs = CS;
     if (!Cs || !session) return;
     const left = Cs.remaining ? Cs.remaining(session) : 0;
-    $('turns-left').textContent = left > 0 ? `${left}번 더 물을 수 있네` : '이번 몫은 여기까지라네';
+    $('turns-left').textContent = left > 0 ? `${left}번 더 물을 수 있어요` : '이번 몫은 여기까지예요';
     const out = left <= 0;
     $('pass-box').classList.toggle('hidden', !out);
     if (out) {
-      $('pass-copy').textContent = '여기까지가 그냥 들어드릴 수 있는 몫이네. 더 깊이 들어가려면 한 걸음 더 필요하지.';
-      $('pass-note').textContent = '상담권 한 장으로 다섯 번 더 물을 수 있다네. 결제는 준비 중이라 지금은 눌러도 그냥 열리네.';
+      $('pass-copy').textContent = '여기까지가 그냥 들어드릴 수 있는 몫이에요. 더 깊이 들어가려면 한 걸음 더 필요해요.';
+      $('pass-note').textContent = '구독하시면 한 달에 한 번, 이어서 깊이 물을 수 있어요. 결제는 준비 중이라 지금은 눌러도 그냥 열려요.';
     }
     $('btn-ask').disabled = out;
     $('f-ask').disabled = out;
@@ -1007,7 +1007,7 @@
       res = await CS.ask(session, text);
     } catch (err) {
       busy.remove();
-      say('dr', '미안하네, 지금은 답을 잇지 못하겠네. 조금 뒤에 다시 물어봐 주시겠나.');
+      say('dr', '죄송해요, 지금은 답을 잇지 못하겠어요. 조금 뒤에 다시 물어봐 주세요.');
       return;
     }
     busy.remove();

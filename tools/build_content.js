@@ -21,6 +21,7 @@ const ROOT = path.resolve(__dirname, '..');
 const SRC1 = path.join(__dirname, 'content_source.json');
 const SRC2 = path.join(__dirname, 'content_source_v2.json');
 const SRC3 = path.join(__dirname, 'content_source_flow.json');  // 3판. 이번 달·올해 축
+const VOICE = path.join(__dirname, 'voice_modern.json');        // 4판. 도령체 → 현대 상담체
 const REWRITE = path.join(__dirname, 'content_rewrite_v2.json');
 const OUT = path.join(ROOT, 'js', 'content.js');
 
@@ -129,6 +130,41 @@ function get(db, dotted) {
   return [row, field];
 }
 
+/* 말투 판(voice_modern.json)은 db 와 키 모양이 조금 다르다.
+   defs.경가을.body 처럼 깊이가 3인 것도, chapters 처럼 배열인 것도 있어
+   경로를 일반적으로 훑는다. 배열은 id 로 찾는다. */
+function resolveVoice(v, dotted) {
+  const parts = dotted.split('.');
+  let cur = v;
+  for (let i = 0; i < parts.length - 1; i++) {
+    const k = parts[i];
+    cur = Array.isArray(cur) ? cur.find((x) => x && x.id === k) : (cur && cur[k]);
+    if (!cur) return null;
+  }
+  return [cur, parts[parts.length - 1]];
+}
+
+function applyVoicePatches(v) {
+  const patches = require('./patches_voice.js');
+  const bad = [];
+  for (const [dotted, find, repl, why] of patches) {
+    const hit = resolveVoice(v, dotted);
+    if (!hit) { bad.push(`${dotted} — 경로를 못 찾음`); continue; }
+    const [row, field] = hit;
+    const cur = row[field];
+    if (typeof cur !== 'string') { bad.push(`${dotted} — 글이 아니다`); continue; }
+    if (find === null) { row[field] = repl; continue; }
+    if (!cur.includes(find)) { bad.push(`${dotted} — 못 찾음: "${find}"`); continue; }
+    row[field] = cur.split(find).join(repl);
+  }
+  if (bad.length) {
+    console.error('\n말투 수정 실패:');
+    bad.forEach((b) => console.error('  ×', b));
+    process.exit(1);
+  }
+  console.log(`  말투 검수 수정 ${patches.length}건 적용`);
+}
+
 function main() {
   const v1 = JSON.parse(fs.readFileSync(SRC1, 'utf8'));
   const v2 = JSON.parse(fs.readFileSync(SRC2, 'utf8'));
@@ -223,6 +259,61 @@ function main() {
     if (hits > 1) console.warn(`  ! ${dotted} — "${find}" 가 ${hits}군데 있어 모두 바꿨다`);
     row[field] = String(cur).split(find).join(repl);
   }
+
+  /* 말투는 검수 수정을 다 적용한 뒤에 덮는다.
+     voice_modern.json 은 이미 패치가 반영된 content.js 에서 뽑아 옮긴 것이라,
+     먼저 덮으면 뒤따르는 PATCHES 가 옛 도령체 문장으로 되돌려 놓는다. */
+  /* ── 말투를 현대어로 갈아끼운다 ─────────────────────────
+     1~3판은 전부 조선 도령 말투("자네", "~하네", "~하시게")로 쓰였다.
+     사용자가 두 번 지적했다 — 돌려 말해서 뜻이 한 번에 안 잡히고, 그래서 읽다가 나간다.
+     내용·근거·구조는 그대로 두고 말투만 옮긴 판을 여기서 덮는다.
+     원문을 지우지 않고 덮는 이유는, 무엇이 어떻게 바뀌었는지 대조할 수 있어야 하기 때문이다. */
+  let voiced = 0;
+  if (fs.existsSync(VOICE)) {
+    const v = JSON.parse(fs.readFileSync(VOICE, 'utf8'));
+    applyVoicePatches(v);           // 말투 검수에서 나온 27건은 덮기 전에 반영한다
+    const put = (bucket, src) => {
+      if (!src) return;
+      for (const [k, row] of Object.entries(src)) {
+        if (!db[bucket] || !db[bucket][k]) { console.warn(`  ! 말투: 없는 항목 ${bucket}.${k}`); continue; }
+        for (const [f, val] of Object.entries(row)) {
+          if (typeof val === 'string') { db[bucket][k][f] = val; voiced++; }
+        }
+      }
+    };
+    put('todayRelations', v.today);
+    put('todayBranches', v.branches);
+    put('branchKinds', v.kinds);
+    put('defs', v.defs);
+    put('daeunPhases', v.daeun && v.daeun.phases);
+    put('yearLines', v.year);
+    put('nouns', v.names && v.names.nouns);
+    put('modifiers', v.names && v.names.modifiers);
+    // 이번 달 줄은 {그룹: {지지: 문장}} 이라 한 겹 더 들어간다
+    if (v.month) {
+      for (const [g, m] of Object.entries(v.month)) {
+        for (const [b, line] of Object.entries(m)) {
+          if (db.monthMeets[g] && typeof line === 'string') { db.monthMeets[g][b] = line; voiced++; }
+        }
+      }
+    }
+    if (Array.isArray(v.daeun && v.daeun.transitions)) {
+      v.daeun.transitions.forEach((t, i) => {
+        if (TRANSITIONS[i] && t.line) { TRANSITIONS[i].line = t.line; voiced++; }
+      });
+    }
+    // 챕터는 id 로 맞춰 제목·티저·근거만 갈아끼운다. 무료 여부와 묶음은 건드리지 않는다.
+    if (Array.isArray(v.chapters)) {
+      v.chapters.forEach((c) => {
+        const t = db.chapters[c.id];
+        if (!t) { console.warn(`  ! 말투: 없는 챕터 ${c.id}`); return; }
+        ['title', 'teaser', 'basis'].forEach((f) => {
+          if (typeof c[f] === 'string') { t[f] = c[f]; voiced++; }
+        });
+      });
+    }
+  }
+
 
   /* ── 검산 ── */
   const problems = [...failed];
