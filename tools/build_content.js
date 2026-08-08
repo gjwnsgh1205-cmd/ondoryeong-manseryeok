@@ -353,21 +353,64 @@ function main() {
       (ww.work || []).forEach((x) => { db.longform.work[x.key] = strip(x, ['key']); });
       if (ww.addons) db.longform.wealthAddons = ww.addons;
 
+      /* 마지막 손질. 워크플로를 또 돌리기엔 문장 몇 개뿐인 것들을 여기서 고친다. */
+      for (const [box, key, pi, find, to, why] of require('./patches_ww.js')) {
+        const ch = db.longform[box] && db.longform[box][key];
+        if (!ch || !ch.paras[pi] || !ch.paras[pi].includes(find)) {
+          console.warn(`  ! 손질 못 찾음: ${box}.${key}[${pi}] — ${why}`);
+          continue;
+        }
+        ch.paras[pi] = ch.paras[pi].replace(find, to);
+      }
+
       const wn = Object.keys(db.longform.wealth).length;
       const kn = Object.keys(db.longform.work).length;
       console.log(`  긴 글 — 재물 ${wn}/9, 일 ${kn}/15`);
 
       /* 앞 절반은 강점과 기회만 쓰기로 했다. 거기 부정어가 들어가면 규칙이 깨진다.
-         읽고 기분이 좋아야 가려진 쪽이 궁금해지기 때문이다. */
-      const NEG = /(다만|하지만|그러나|문제는|아쉽게도|안타깝게)/;
-      let neg = 0;
+         읽고 기분이 좋아야 가려진 쪽이 궁금해지기 때문이다.
+
+         두 단계로 본다.
+
+         ① 전환 표지 — 다만·하지만·그러나·문제는. 이건 무조건 잘못이다.
+            앞 절반에서 화제를 약점으로 돌리는 말이라 규칙을 정면으로 어긴다.
+
+         ② 역접 어미 — "~는데," "~지만". 이건 **세기만 하고 판단은 사람이 한다.**
+            한 번 검사를 세게 잡았다가 여섯 건을 잡았는데 넷이 "재성이라 하는데," 였다.
+            용어를 소개하는 말이지 역접이 아니다. 나머지 둘도
+            "안 내는데, 정작 본인은 다 알고 있어요" 처럼 반전이 긍정 쪽이었다.
+            문법으로는 역접이어도 읽는 사람 기분을 꺾지 않으면 괜찮다.
+            그래서 "~라 하는데" 꼴(용어 소개)은 빼고 세고, 남은 건 눈으로 보라고만 한다. */
+      const TURN = /(다만|하지만|그러나|문제는|아쉽게도|안타깝게)/;
+      const CONTRA = /[가-힣](?:는데|지만),/g;
+      const TERM_INTRO = /(?:이?라|라고) (?:하|부르)는데,/;   // "재성이라 하는데," — 역접이 아니다
+      let turn = 0, contra = 0;
       for (const box of [db.longform.wealth, db.longform.work]) {
         for (const [k, ch] of Object.entries(box)) {
           const free = (ch.paras || []).slice(0, ch.cutAt || 2).join(' ');
-          if (NEG.test(free)) { neg++; console.warn(`  ! ${k} — 무료 구간에 부정어가 있다`); }
+          const t = free.match(TURN);
+          if (t) { turn++; console.warn(`  ! ${k} — 무료 구간에 전환 표지 "${t[0]}"`); }
+          for (const s of free.split(/(?<=[.!?])\s+/)) {
+            if (CONTRA.test(s) && !TERM_INTRO.test(s)) contra++;
+          }
         }
       }
-      if (!neg) console.log('  무료 구간 부정어 0건');
+      if (!turn) console.log('  무료 구간 전환 표지 0건');
+      if (contra) console.log(`    (역접 어미 ${contra}곳 — 기분을 꺾는지 눈으로 볼 것)`);
+
+      /* lead 는 요약이고 1문단 첫 문장은 장면이어야 한다.
+         같으면 한 줄 내려와서 같은 말을 또 읽는다. */
+      let echo = 0;
+      for (const box of [db.longform.wealth, db.longform.work]) {
+        for (const [k, ch] of Object.entries(box)) {
+          const bare = (s) => String(s || '').replace(/[^가-힣]/g, '');
+          const a = bare(ch.lead), b = bare((ch.paras[0] || '').split(/(?<=[.!?])\s+/)[0]);
+          if (a.length > 8 && (b.includes(a.slice(0, 10)) || a.slice(0, 10) === b.slice(0, 10))) {
+            echo++; console.warn(`  ! ${k} — lead 와 1문단 첫 문장이 같은 말이다`);
+          }
+        }
+      }
+      if (!echo) console.log('  lead 동어반복 0건');
 
       /* 틀이 반복되는 걸 사람이 눈으로 잡기 어렵다.
          실제로 세 판을 도는 동안 이런 게 나왔다 —
@@ -393,16 +436,24 @@ function main() {
       variety('일 약점 문단 첫 문장', K, (x) => head(x.paras[2]).slice(0, 12), 10);
 
       /* 한 사람이 한 화면에서 재물 1편과 일 1편을 나란히 읽는다.
-         두 곳에 똑같은 문장이 있으면 바로 눈에 띈다. */
-      const sents = [...W, ...K].flatMap((x) => x.paras.join(' ')
-        .split(/(?<=[.!?])\s+/).map((s) => s.trim()).filter((s) => s.length > 18));
-      const cnt = {};
-      sents.forEach((s) => { cnt[s] = (cnt[s] || 0) + 1; });
-      const dup = Object.entries(cnt).filter(([, v]) => v > 1);
-      if (dup.length) {
-        console.warn(`  ! 두 곳 이상에 똑같은 문장 ${dup.length}건`);
-        dup.slice(0, 3).forEach(([s]) => console.warn(`      ${s.slice(0, 46)}…`));
-      } else console.log('    겹치는 문장 0건');
+         두 곳에 같은 문장이 있으면 바로 눈에 띈다.
+
+         똑같은 문장만 세면 놓친다. 검수는 24쌍을 잡았는데 내 검사는 0건이라고 했다 —
+         "앞 세 어절이 같은" 것까지 사람 눈에는 같은 문장으로 읽히기 때문이다.
+         그래서 앞 세 어절로 센다.
+
+         다만 재물끼리, 일끼리는 한 화면에 같이 안 뜬다. 한 사람은 각 묶음에서
+         한 편씩만 본다. 그러니 **재물↔일 사이에 겹치는 것만** 문제로 잡는다. */
+      const head3 = (s) => s.trim().split(/\s+/).slice(0, 3).join(' ');
+      const pick = (arr) => new Set(arr.flatMap((x) => x.paras.join(' ')
+        .split(/(?<=[.!?])\s+/).map((s) => s.trim())
+        .filter((s) => s.length > 18).map(head3)));
+      const wh = pick(W), kh = pick(K);
+      const cross = [...wh].filter((h) => kh.has(h));
+      if (cross.length) {
+        console.warn(`  ! 재물과 일에 같이 나오는 문장머리 ${cross.length}건`);
+        cross.slice(0, 4).forEach((h) => console.warn(`      "${h}…"`));
+      } else console.log('    재물↔일 겹치는 문장 0건');
     }
 
     /* 물상 명사를 슬롯 대신 본문에 박아둔 자리가 있으면 잡는다.
