@@ -24,9 +24,16 @@ def optimize_videos():
     if not ffmpeg:
         print("ffmpeg 없음 — 영상 최적화 건너뜀")
         return
+    ffprobe = shutil.which("ffprobe")
     for src in sorted(VID.glob("doryeong-*.mp4")):
-        if src.stem.endswith(".min"):
-            continue
+        if ffprobe:
+            # 이미 목표 폭이면 건너뛴다 — 반복 실행 시 재압축으로 화질이 깎이는 걸 막는다
+            w = subprocess.run([ffprobe, "-v", "error", "-select_streams", "v:0",
+                                "-show_entries", "stream=width", "-of", "csv=p=0", str(src)],
+                               capture_output=True, text=True).stdout.strip()
+            if w.isdigit() and int(w) <= VIDEO_WIDTH:
+                print(f"{src.name}: 이미 {w}px — 건너뜀")
+                continue
         tmp = src.with_suffix(".tmp.mp4")
         before = src.stat().st_size
         subprocess.run([
@@ -41,13 +48,17 @@ def optimize_videos():
 
 
 def optimize_pngs():
+    """리사이즈 + 255색 팔레트 양자화. 셀셰이딩 일러스트라 색 손실이 눈에 띄지 않고 용량은 1/5 이하가 된다."""
     for src in sorted(WEB.glob("doryeong-*.png")):
         img = Image.open(src)
-        if img.width <= PNG_WIDTH:
+        if img.width <= PNG_WIDTH and img.mode == "P":
+            print(f"{src.name}: 이미 최적화됨 — 건너뜀")
             continue
         before = src.stat().st_size
-        h = round(img.height * PNG_WIDTH / img.width)
-        img.resize((PNG_WIDTH, h), Image.LANCZOS).save(src, optimize=True)
+        if img.width > PNG_WIDTH:
+            h = round(img.height * PNG_WIDTH / img.width)
+            img = img.resize((PNG_WIDTH, h), Image.LANCZOS)
+        img.convert("RGBA").quantize(colors=255, method=Image.FASTOCTREE).save(src, optimize=True)
         print(f"{src.name}: {before // 1024}KB -> {src.stat().st_size // 1024}KB")
 
 

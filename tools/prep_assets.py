@@ -4,8 +4,8 @@
 gpt-image-2는 "transparent background"를 요청해도 마젠타 크로마키나
 흰 배경/체커보드 무늬로 내보내는 경우가 있다. 이 스크립트가 그걸 정리한다.
 
-  1) assets/web/*.png   — 배경 제거 + 프린지(마젠타 끼) 제거 + 여백 트림한 투명 PNG (웹용)
-  2) assets/video/*.png — 위 결과를 앱 먹색 배경 위에 얹은 9:16 프레임 (i2v 시작 프레임용)
+  1) assets/web/*.png            — 배경 제거 + 프린지(마젠타 끼) 제거 + 여백 트림한 투명 PNG (배포용)
+  2) assets/_master/frames/*.png — 위 결과를 앱 먹색 배경 위에 얹은 9:16 프레임 (i2v 입력용, 배포 제외)
 
 실행: python tools/prep_assets.py
 """
@@ -14,9 +14,9 @@ import numpy as np
 from PIL import Image, ImageDraw
 
 ROOT = Path(__file__).resolve().parent.parent
-SRC = ROOT / "assets" / "_master"   # gpt-image-2 원본 (마젠타 크로마키 상태)
-WEB = ROOT / "assets" / "web"
-VID = ROOT / "assets" / "video"
+SRC = ROOT / "assets" / "_master"            # gpt-image-2 원본 (마젠타 크로마키 상태)
+WEB = ROOT / "assets" / "web"                # 배포되는 정지 컷
+VID = ROOT / "assets" / "_master" / "frames" # i2v 입력 프레임 (배포 제외)
 
 INK_TOP = (26, 22, 16)      # 앱 배경 먹색 (css --ink 계열)
 INK_BOTTOM = (13, 11, 8)
