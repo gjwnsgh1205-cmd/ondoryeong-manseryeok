@@ -312,6 +312,19 @@
     const order = [['year', '연주', '태어난 해'], ['month', '월주', '태어난 달'],
                    ['day', '일주', '나'], ['hour', '시주', '태어난 시']];
 
+    /* 시각을 모르면 시주가 비어 여섯 글자가 된다.
+       그런데 탭 이름은 '사주팔자' 고 설명은 '두 글자씩' 이라, 그 사람에게는
+       화면이 고장난 것처럼 보인다. 세는 말을 실제 글자 수에 맞춘다. */
+    const six = rp.glyphCount === 6;
+    const sub = $('sub-saju');
+    if (sub) {
+      sub.textContent = six
+        ? '태어난 해·달·날을 두 글자씩 옮긴 표예요. 시각을 몰라 시주 칸은 비어 있어요.'
+        : '태어난 해·달·날·시를 두 글자씩 옮긴 표예요. 어느 기운이 많고 어느 게 비었는지까지.';
+    }
+    const ol = $('oheng-lead');
+    if (ol) ol.textContent = `${six ? '여섯' : '여덟'} 글자에 숨은 기운까지 헤아려 무게를 달았어요.`;
+
     const col = (key, tag, sub) => {
       const p = P[key];
       if (!p) {
@@ -774,8 +787,6 @@
           opened() ? esc(tm.headline) : veil(tm.headline, { label: '내일 미리보기' })}</span>` : ''}
       </div>`;
 
-    const ob = $('btn-open-today');
-    if (ob) ob.addEventListener('click', () => $('btn-unlock').click());
   }
 
   /* ── 잠긴 문 ─────────────────────────────────────────── */
@@ -863,17 +874,67 @@
   // 오늘의 운을 어느 날짜로 그렸는지 — 자정을 넘기면 다시 그려야 한다
   let renderedStamp = null;
 
-  /* 처음 온 사람에겐 사주 풀이가 목적이라 오늘의 운은 다섯째 자리가 맞다.
-     그러나 두 번째부터는 오늘의 운을 보러 오는 것이니 맨 위여야 한다.
-     .report 가 grid 라 order 만 바꾸면 DOM 을 안 건드리고 자리를 옮길 수 있다. */
-  function hoistToday(on) {
-    $('report').classList.toggle('today-first', !!on);
-    const num = document.querySelector('#sec-today .rp-num');
-    const lead = document.querySelector('#sec-today .rp-lead');
-    if (num) num.textContent = on ? '' : '五';
-    if (lead) lead.textContent = on
-      ? '어제와 다른 하루예요. 아래로 내려가면 사주 풀이도 그대로 있어요.'
-      : '날마다 바뀌니 내일 다시 와서 보세요.';
+  /* ══════════════════════════════════════════════════════
+     탭
+
+     예전엔 一二三四五 번호가 붙은 일곱 덩이가 한 줄로 이어졌다.
+     아래로 갈수록 힘이 빠졌고, 매일 오는 사람은 오늘까지 닿는 데 네 덩이를 지나야 했다.
+
+     탭을 넷으로 나눈 대신, 자리는 고정하고 **처음 열리는 탭만** 사람에 따라 다르게 한다.
+     자리까지 흔들면 어제 있던 게 오늘 없는 화면이 된다.
+       처음 온 사람  → 타고난 성격.  "이게 나를 맞히나" 를 재는 자리가 여기다.
+                       명식표는 증거지 훅이 아니다 — 한자 여덟 개가 첫 화면이면 그냥 나간다.
+       다시 온 사람  → 오늘의 운수.  다시 온 이유가 그것 하나뿐이다.
+     ══════════════════════════════════════════════════════ */
+  const TABS = ['today', 'nature', 'saju', 'flow'];
+  let activeTab = null;
+
+  function showTab(id, opt = {}) {
+    if (!TABS.includes(id)) id = TABS[0];
+    if (id === activeTab && !opt.force) return;
+    const prev = activeTab;
+    activeTab = id;
+
+    for (const t of TABS) {
+      const btn = $(`tab-${t}`), pane = $(`pane-${t}`);
+      if (!btn || !pane) continue;
+      const on = t === id;
+      btn.setAttribute('aria-selected', String(on));
+      // 안 열린 탭은 탭 순회에서 빠져야 한다. 화살표로만 옮기는 게 표준이다.
+      btn.tabIndex = on ? 0 : -1;
+      pane.hidden = !on;
+    }
+
+    // 탭 막대를 눌러 옮긴 경우에만 위로 올린다.
+    // 되살아나며 그리는 경우(처음 진입·자정 갱신)까지 올리면 읽던 자리를 잃는다.
+    if (prev !== null && !opt.keepScroll) {
+      const bar = $('tabs');
+      if (bar) window.scrollTo({ top: Math.max(0, bar.offsetTop - 8), behavior: 'instant' });
+    }
+    // 새로 뜬 판의 애니메이션을 다시 걸어준다 — 숨어 있던 동안은 관찰이 안 됐다.
+    observeReveal();
+  }
+
+  function wireTabs() {
+    const bar = $('tabs');
+    if (!bar) return;
+    bar.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-tab]');
+      if (b) showTab(b.dataset.tab);
+    });
+    // 좌우 화살표로 옮기고 Home/End 로 양 끝. 탭 위젯의 표준 조작이다.
+    bar.addEventListener('keydown', (e) => {
+      const i = TABS.indexOf(activeTab);
+      let n = -1;
+      if (e.key === 'ArrowRight') n = (i + 1) % TABS.length;
+      else if (e.key === 'ArrowLeft') n = (i - 1 + TABS.length) % TABS.length;
+      else if (e.key === 'Home') n = 0;
+      else if (e.key === 'End') n = TABS.length - 1;
+      if (n < 0) return;
+      e.preventDefault();
+      showTab(TABS[n]);
+      $(`tab-${TABS[n]}`).focus();
+    });
   }
 
   function renderReport() {
@@ -887,6 +948,8 @@
     renderChapters();
     renderInvite();
     $('cs-name').textContent = rp.type.name;
+    // 아직 어느 탭도 안 열렸으면 첫 방문이다. "이게 나를 맞히나" 를 재는 자리로 연다.
+    if (activeTab === null) showTab('nature', { keepScroll: true, force: true });
   }
 
   // 탭을 켜둔 채 자정을 넘기면 어제 운세가 그대로 남는다.
@@ -1168,6 +1231,17 @@
       $('sec-locked').scrollIntoView({ block: 'start', behavior: 'smooth' });
     });
 
+    /* 가려진 자리를 여는 단추(.td-open)는 글 안에서 만들어진다.
+       기질·대운·오늘·오늘더읽기 네 곳인데, 다시 그릴 때마다 사라졌다 새로 생긴다.
+       그래서 하나씩 붙이면 안 된다 — 실제로 그렇게 두었다가 네 개 중 하나만
+       살아 있었다. 나머지 셋은 눌러도 아무 일이 없었다.
+       #report 에 한 번만 걸어두면 몇 번을 다시 그려도 계속 듣는다. */
+    $('report').addEventListener('click', (e) => {
+      const b = e.target.closest('.td-open');
+      if (!b) return;
+      $('btn-unlock').click();
+    });
+
     // 한 번에 제대로 — 내 사정을 받아 그 위에 명식을 얹는 자리.
     // 미리 지어둔 글로는 못 하는 것이라 여기만 값이 다르다.
     // 19,800원은 "내 이야기를 듣고 쓰는 풀이"다. 먼저 이야기를 받는다.
@@ -1204,7 +1278,7 @@
       $('report').classList.add('hidden');
       $('consult').classList.add('hidden');
       $('resume-bar').classList.add('hidden');
-      hoistToday(false);
+      activeTab = null;         // 다음 사람은 다시 첫 방문이다
       $('gate').classList.remove('hidden');
       document.querySelectorAll('#report .reveal').forEach((el) => el.classList.remove('seen'));
       $('birth-form').reset();
@@ -1245,6 +1319,7 @@
     loadEnt();          // 구독·단건 상태를 되살린다. 이게 없으면 새로고침마다 다시 잠긴다.
     mountGate();
     bind();
+    wireTabs();
     observeVideos();
 
     // 친구가 보낸 링크로 들어왔다면 그 유형을 먼저 보여준다.
@@ -1261,7 +1336,9 @@
       cast({ silent: true }).then(() => {
         if (!rp) return;
         $('resume-bar').classList.remove('hidden');
-        hoistToday(true);
+        // 저장된 명식이 되살아났다는 건 전에 왔던 사람이라는 뜻이다.
+        // 다시 온 이유는 오늘 하나뿐이니 오늘 탭으로 연다.
+        showTab('today', { keepScroll: true, force: true });
       });
     }
   }

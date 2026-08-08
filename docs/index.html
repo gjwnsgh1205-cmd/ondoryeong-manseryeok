@@ -18,7 +18,7 @@
 <meta property="og:image:width" content="520">
 <meta property="og:image:height" content="1054">
 <meta name="twitter:card" content="summary_large_image">
-<link rel="stylesheet" href="css/style.css?v=4b6a24ef">
+<link rel="stylesheet" href="css/style.css?v=6dcd1ce0">
 </head>
 <body>
 
@@ -143,71 +143,75 @@
     <div class="rp-stats" id="rp-stats"></div>
   </header>
 
-  <!-- 여덟 글자 -->
-  <section class="rp-sec reveal" id="sec-pillars">
-    <div class="rp-head">
-      <span class="rp-num">一</span>
-      <h3>여덟 글자</h3>
-      <p class="rp-lead">태어난 해·달·날·시가 각각 두 글자씩. 이 여덟 자가 명식이에요.</p>
-    </div>
-    <div class="board" id="board"></div>
-    <p class="board-foot" id="board-foot"></p>
-  </section>
+  <!-- ════════════════════════════════════════════════════
+       탭 — 예전엔 一二三四五 번호가 붙은 일곱 덩이가 한 줄로 쭉 이어졌다.
+       아래로 갈수록 힘이 빠졌고, 매일 오는 사람은 오늘까지 닿는 데
+       네 덩이를 지나야 했다. 넷으로 갈라 각자 첫 화면을 갖게 했다.
+       이름은 명리 용어가 아니라 누구나 아는 말로 붙인다.
+       ════════════════════════════════════════════════════ -->
+  <nav class="tabs" id="tabs" role="tablist" aria-label="풀이 갈래">
+    <button type="button" role="tab" id="tab-today"  aria-controls="pane-today"  data-tab="today">오늘의 운수</button>
+    <button type="button" role="tab" id="tab-nature" aria-controls="pane-nature" data-tab="nature">타고난 성격</button>
+    <button type="button" role="tab" id="tab-saju"   aria-controls="pane-saju"   data-tab="saju">사주팔자</button>
+    <button type="button" role="tab" id="tab-flow"   aria-controls="pane-flow"   data-tab="flow">인생 흐름</button>
+  </nav>
 
-  <!-- 기질 -->
-  <section class="rp-sec reveal" id="sec-nature">
-    <div class="rp-head">
-      <span class="rp-num">二</span>
-      <h3>타고난 결</h3>
-      <p class="rp-lead">넉 자 중 가운데 윗자리, 태어난 날의 천간이 곧 나예요.</p>
-    </div>
-    <div class="nature" id="nature"></div>
-  </section>
+  <!-- ── 타고난 성격 ── -->
+  <div class="pane" id="pane-nature" role="tabpanel" aria-labelledby="tab-nature" tabindex="-1">
+    <p class="pane-sub" id="sub-nature">태어난 날의 글자 하나가 성격의 바탕이에요. 잘 쓰는 힘과 자주 걸리는 자리까지.</p>
+    <section class="rp-sec reveal" id="sec-nature">
+      <div class="nature" id="nature"></div>
+    </section>
+  </div>
 
-  <!-- 오행 -->
-  <section class="rp-sec reveal" id="sec-elements">
-    <div class="rp-head">
-      <span class="rp-num">三</span>
-      <h3>다섯 기운의 저울</h3>
-      <p class="rp-lead">여덟 글자에 숨은 기운까지 헤아려 무게를 달았어요.</p>
-    </div>
-    <div class="oheng" id="oheng"></div>
-    <p class="oheng-foot" id="oheng-foot"></p>
-  </section>
+  <!-- ── 사주팔자 ── -->
+  <div class="pane" id="pane-saju" role="tabpanel" aria-labelledby="tab-saju" tabindex="-1">
+    <!-- 시각을 모르면 시주가 비어 여섯 글자가 된다. 그때는 app.js 가 이 문구를 갈아 끼운다. -->
+    <p class="pane-sub" id="sub-saju">태어난 해·달·날·시를 두 글자씩 옮긴 표예요. 어느 기운이 많고 어느 게 비었는지까지.</p>
+    <section class="rp-sec reveal" id="sec-pillars">
+      <div class="board" id="board"></div>
+      <p class="board-foot" id="board-foot"></p>
+    </section>
 
-  <!-- 대운 곡선 -->
-  <section class="rp-sec reveal" id="sec-curve">
-    <div class="rp-head">
-      <span class="rp-num">四</span>
-      <h3>인생의 물결</h3>
-      <p class="rp-lead">열 해마다 기운이 갈려요. 지금 서 있는 자리를 별로 찍어두었어요.
-        높낮이는 좋고 나쁨이 아니라 바람의 방향이에요 — 위는 기운이 밀어주는 때, 아래는 내 힘으로 밀고 가는 때예요.</p>
-    </div>
-    <div class="curve-wrap">
-      <div id="curve"></div>
-    </div>
-    <div class="curve-now" id="curve-now" aria-live="polite"></div>
-    <!-- 지금 지나는 십 년 — 한 편의 긴 글 -->
-    <div class="daeun-read" id="daeun-read"></div>
-  </section>
+    <section class="rp-sec reveal" id="sec-elements">
+      <h3 class="sec-t">다섯 기운의 저울</h3>
+      <p class="sec-lead" id="oheng-lead">여덟 글자에 숨은 기운까지 헤아려 무게를 달았어요.</p>
+      <div class="oheng" id="oheng"></div>
+      <p class="oheng-foot" id="oheng-foot"></p>
+    </section>
+  </div>
 
-  <!-- 오늘 -->
-  <section class="rp-sec reveal" id="sec-today">
-    <div class="rp-head">
-      <span class="rp-num">五</span>
-      <h3>오늘</h3>
-      <p class="rp-lead">날마다 바뀌니 내일 다시 와서 보세요.</p>
-    </div>
-    <div class="today" id="today"></div>
-  </section>
+  <!-- ── 인생 흐름 ── -->
+  <div class="pane" id="pane-flow" role="tabpanel" aria-labelledby="tab-flow" tabindex="-1">
+    <p class="pane-sub">열 해마다 기운이 갈려요. 지금 어느 십 년에 서 있고 다음은 언제인지.</p>
+    <section class="rp-sec reveal" id="sec-curve">
+      <div class="curve-wrap">
+        <div id="curve"></div>
+      </div>
+      <p class="sec-note">높낮이는 좋고 나쁨이 아니라 바람의 방향이에요. 위는 기운이 밀어주는 때, 아래는 내 힘으로 밀고 가는 때예요.</p>
+      <div class="curve-now" id="curve-now" aria-live="polite"></div>
+      <!-- 지금 지나는 십 년 — 한 편의 긴 글 -->
+      <div class="daeun-read" id="daeun-read"></div>
+    </section>
+  </div>
+
+  <!-- ── 오늘의 운수 ── -->
+  <div class="pane" id="pane-today" role="tabpanel" aria-labelledby="tab-today" tabindex="-1">
+    <p class="pane-sub">오늘 하루의 점수와 그 이유. 해볼 것과 미뤄둘 것까지 한 화면에.</p>
+    <section class="rp-sec reveal" id="sec-today">
+      <div class="today" id="today"></div>
+    </section>
 
   <!-- 잠긴 문 -->
+  </div><!-- /pane-today -->
+
+  <!-- ════════════════════════════════════════════════════
+       탭 아래 공통 꼬리 — 어느 탭에 있든 늘 붙는다.
+       잠긴 글 목록과 값을 탭 하나로 만들면 아무도 안 누르는 방이 된다.
+       ════════════════════════════════════════════════════ -->
   <section class="rp-sec reveal" id="sec-locked">
-    <div class="rp-head">
-      <span class="rp-num">六</span>
-      <h3>아직 열지 않은 것</h3>
-      <p class="rp-lead" id="locked-lead"></p>
-    </div>
+    <h3 class="sec-t">아직 열지 않은 것</h3>
+    <p class="sec-lead" id="locked-lead"></p>
     <ul class="ch-list" id="ch-list"></ul>
 
     <div class="unlock" id="unlock">
@@ -219,13 +223,14 @@
         <ul class="tier-list">
           <li>매일의 운세를 가린 곳 없이 전부</li>
           <li>아직 열지 않은 여덟 장</li>
+          <li>한 달에 한 번, 내 상황을 넣은 AI 상담</li>
           <li>광고 없이</li>
         </ul>
         <button id="btn-unlock" class="btn-unlock">전부 열기</button>
         <p class="unlock-note" id="unlock-note"></p>
       </div>
 
-      <div class="tier tier-deep">
+      <div class="tier tier-deep hidden">
         <div class="tier-head">
           <span class="tier-name">한 번에 제대로</span>
           <b class="tier-price" id="deep-price">19,800원</b>
@@ -248,8 +253,8 @@
     <div class="ask-invite">
       <div id="dr-ask" class="dr-ask"></div>
       <div class="ask-invite-copy">
-        <h3>더 묻고 싶은 것이 있는가</h3>
-        <p>명식은 큰 줄기일 뿐이에요. 지금 상황을 말해주시면 그 위에 얹어 짚어볼게요.</p>
+        <h3>더 묻고 싶은 것이 있나요</h3>
+        <p>여기까지는 명식만 보고 쓴 글이에요. 지금 상황을 말해주시면 그 위에 얹어 짚어볼게요.</p>
         <div class="ask-chips" id="ask-chips"></div>
         <button id="btn-to-consult" class="btn-ghost-gold">상담 시작하기</button>
       </div>
@@ -334,7 +339,7 @@
 <script src="js/josa.js?v=60b54171"></script>
 <script src="js/chapter.js?v=1123f5e2"></script>
 <script src="js/content.js?v=7f409c53"></script>
-<script src="js/report.js?v=886a067b"></script>
+<script src="js/report.js?v=8d5afb92"></script>
 <script src="js/counsel.js?v=0393b86d"></script>
 <script src="js/doryeong.js?v=6c78be91"></script>
 <script src="js/topics.js?v=53b4a84c"></script>
@@ -342,6 +347,6 @@
 <script src="js/share.js?v=25cf8aaf"></script>
 <script src="js/consult.js?v=4c52676c"></script>
 <script src="js/sky.js?v=9d0a5e59"></script>
-<script src="js/app.js?v=553f8540"></script>
+<script src="js/app.js?v=8ecde59d"></script>
 </body>
 </html>

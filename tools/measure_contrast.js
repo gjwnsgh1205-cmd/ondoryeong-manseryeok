@@ -14,9 +14,19 @@
 (function (root) {
   'use strict';
 
+  /* 브라우저가 돌려주는 색 문자열은 한 가지가 아니다.
+       rgb(75, 81, 96)              흔한 꼴 — 0~255
+       color(srgb 1 1 1 / 0.88)     color-mix 를 쓰면 이렇게 나온다 — 0~1
+     둘을 같은 자로 읽으면 흰색이 거의 검정이 된다. 실제로 한 번 속아서
+     멀쩡한 탭 막대를 2.06:1 로 잡았다. 꼴을 먼저 가린다. */
   const parse = (c) => {
-    const n = (c || '').match(/[\d.]+/g);
+    const s = String(c || '');
+    const n = s.match(/[\d.]+/g);
     if (!n) return null;
+    if (/^color\(/.test(s)) {
+      // color(srgb r g b / a) — 0~1 스케일이라 255 를 곱해야 같은 자가 된다
+      return { r: +n[0] * 255, g: +n[1] * 255, b: +n[2] * 255, a: n.length > 3 ? +n[3] : 1 };
+    }
     return { r: +n[0], g: +n[1], b: +n[2], a: n.length > 3 ? +n[3] : 1 };
   };
 

@@ -10,8 +10,16 @@ const Report = (() => {
   const C = () => (typeof Content !== 'undefined' ? Content : (typeof window !== 'undefined' ? window.Content : null));
 
   /* ── 사주 여덟 글자가 만들 수 있는 경우의 수 ───────────────
-     연주 60 × 월지 12(월간은 연간에 종속) × 일주 60 × 시지 12(시간은 일간에 종속) */
-  const TOTAL_CHARTS = 60 * 12 * 60 * 12; // 518,400
+     연주 60 × 월지 12(월간은 연간에 종속) × 일주 60 × 시지 12(시간은 일간에 종속)
+
+     태어난 시각을 모르면 시주를 못 세운다. 그러면 마지막 12가 빠져 43,200 이다.
+     화면에 "518,400가지 중 하나" 라고 띄우던 자리가 그 사람에게는 그냥 틀린 숫자였다.
+     이 앱은 폼에서 "태어난 시각을 몰라요" 를 대놓고 받는다 — 적지 않은 사람이 그쪽이다. */
+  const TOTAL_CHARTS = 60 * 12 * 60 * 12; // 518,400 — 여덟 글자를 다 세울 때
+  const TOTAL_CHARTS_NO_HOUR = 60 * 12 * 60; // 43,200 — 시주가 없을 때
+
+  const totalFor = (chart) =>
+    (chart && chart.meta && chart.meta.assumedNoon) ? TOTAL_CHARTS_NO_HOUR : TOTAL_CHARTS;
 
   /* ── 실측 분위수 ──────────────────────────────────────────
      아래 숫자는 지어낸 게 아니라 1955–2011년 출생 20,000표본을 실제로 계산해
@@ -73,7 +81,7 @@ const Report = (() => {
       line: rare ? `오행이 한쪽으로 쏠린 정도가 상위 ${pct}%에 드는 명식이에요`
           : balanced ? '오행이 제법 고르게 퍼진 명식이에요'
           : '오행이 크게 치우치지도, 딱 고르지도 않은 명식이에요',
-      total: TOTAL_CHARTS,
+      total: totalFor(chart),
     };
   }
 
@@ -584,12 +592,14 @@ const Report = (() => {
       flow: flow(chart, now, cur),
       year: thisYear(chart, now),
       chapters: chapters(chart, opt.unlocked),
-      totalCharts: TOTAL_CHARTS,
+      totalCharts: totalFor(chart),
+      // 시각을 모르면 여덟 글자가 아니라 여섯 글자다. 화면 문구가 이 값을 보고 갈린다.
+      glyphCount: (chart.meta && chart.meta.assumedNoon) ? 6 : 8,
     };
   }
 
   return {
-    TOTAL_CHARTS, build, rarity, strength, typeName,
+    TOTAL_CHARTS, TOTAL_CHARTS_NO_HOUR, totalFor, build, rarity, strength, typeName,
     luckCurve, todayLuck, tomorrowPeek, branchRelation, todayScore, weekAhead,
     thisYear, thisMonth, flow, chapters,
     ageMonthsNow, currentPoint, dayStamp,
