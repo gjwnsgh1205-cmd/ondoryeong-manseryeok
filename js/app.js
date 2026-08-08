@@ -19,8 +19,10 @@
   // 영상에는 autoplay를 걸지 않는다. 지금 화면에 보이는 컷만 재생한다.
   // 반복 컷(idle·reading)은 영역이 열릴 때 돌고, 일회성 컷(reveal·bow)은
   // 뷰포트에 들어온 순간 한 번 돈다.
+  const ONCE_RATIO = 0.35;         // 이 비율 이상 보여야 일회성 컷을 튼다
   const started = new WeakSet();   // 재생을 시작한 일회성 컷
-  const inView = new WeakSet();    // 지금 뷰포트 안에 있는 일회성 컷
+  const completed = new WeakSet(); // 끝까지 재생된 일회성 컷 (다시 틀지 않는다)
+  const inView = new WeakSet();    // 지금 충분히 보이는 일회성 컷
 
   // 지금 사용자에게 보이는 영역. 로딩 오버레이가 최우선이다.
   function activeSection() {
@@ -37,8 +39,8 @@
     if (!root || REDUCED) return;
     root.querySelectorAll('video.dr-media').forEach(v => {
       if (v.dataset.loop === 'false') {
-        // 일회성 컷은 보일 때만. 아직 안 튼 것은 처음부터, 튼 것은 이어서.
-        if (!inView.has(v)) return;
+        // 일회성 컷은 충분히 보일 때만. 처음이면 0부터, 중간에 멈춘 것은 이어서, 끝난 것은 그대로 둔다.
+        if (!inView.has(v) || completed.has(v)) return;
         if (!started.has(v)) { started.add(v); v.currentTime = 0; }
         playVideo(v);
         return;
@@ -56,15 +58,18 @@
     ? new IntersectionObserver((entries) => {
         for (const e of entries) {
           const v = e.target;
-          if (!e.isIntersecting) { inView.delete(v); continue; }
+          // isIntersecting만 보면 몇 픽셀만 걸쳐도 통과한다. 실제 비율로 판정한다.
+          if (!e.isIntersecting || e.intersectionRatio < ONCE_RATIO) {
+            inView.delete(v);
+            v.pause();                     // 화면 밖에서 계속 돌지 않게
+            continue;
+          }
           inView.add(v);
-          if (REDUCED) continue;          // 감속 해제 시 playIn이 집어간다
-          if (started.has(v)) { playVideo(v); continue; }
-          started.add(v);
-          v.currentTime = 0;
+          if (REDUCED || completed.has(v)) continue;  // 감속 해제 시 playIn이 집어간다
+          if (!started.has(v)) { started.add(v); v.currentTime = 0; }
           playVideo(v);
         }
-      }, { threshold: 0.35 })
+      }, { threshold: [0, ONCE_RATIO] })
     : null;
 
   // 이전 결과의 일회성 컷 관찰을 끊는다 — 결과를 다시 그릴 때 DOM이 통째로 교체되므로
@@ -72,11 +77,21 @@
   let observedOnce = [];
   function registerOnce(root) {
     if (!onceObserver) return;
-    observedOnce.forEach(v => { onceObserver.unobserve(v); inView.delete(v); started.delete(v); });
+    observedOnce.forEach(v => {
+      onceObserver.unobserve(v);
+      inView.delete(v); started.delete(v); completed.delete(v);
+    });
     observedOnce = [];
     if (!root) return;
     observedOnce = Array.from(root.querySelectorAll('video.dr-media[data-loop="false"]'));
-    observedOnce.forEach(v => onceObserver.observe(v));
+    observedOnce.forEach(v => {
+      // 끝까지 재생된 컷은 완료로 잠그고 관찰에서 뺀다. 다시 스크롤해도 되감기지 않는다.
+      v.addEventListener('ended', () => {
+        completed.add(v);
+        onceObserver.unobserve(v);
+      }, { once: true });
+      onceObserver.observe(v);
+    });
   }
 
   if (motionQuery && motionQuery.addEventListener) {
