@@ -584,6 +584,60 @@
     </div>`;
   }
 
+  /* 숫자를 먼저 던지고, 그 숫자가 어디서 나왔는지 통째로 연다.
+     운세 앱이 점수 근거를 안 밝히는 건 밝힐 게 없어서다.
+     우리는 절기를 초 단위로 잡는 엔진이 있으니, 여는 쪽이 유리하다. */
+  function scoreBlock() {
+    const s = rp.score;
+    if (!s) return '';
+    const row = (p) => {
+      const d = p.delta;
+      const sign = d > 0 ? 'up' : d < 0 ? 'down' : 'flat';
+      return `<div class="sc-row sc-${sign}">
+        <span class="sc-d">${d > 0 ? '+' : ''}${d}</span>
+        <span class="sc-t"><b>${esc(p.label)}</b>${esc(p.detail)}${
+          p.why ? `<i>${esc(p.why)}</i>` : ''}</span>
+      </div>`;
+    };
+    return `<div class="score">
+      <div class="sc-head">
+        <span class="sc-num">${s.score}</span>
+        <span class="sc-band">${esc(s.band)}</span>
+      </div>
+      <details class="sc-why">
+        <summary>왜 ${s.score}점인가요?</summary>
+        <div class="sc-body">
+          <div class="sc-row sc-base"><span class="sc-d">${s.base}</span><span class="sc-t"><b>기준점</b>여기서 더하고 뺍니다</span></div>
+          ${s.parts.map(row).join('')}
+          <p class="sc-note">${esc(s.weightNote)}</p>
+          <p class="sc-note">${esc(s.strengthNote)}</p>
+        </div>
+      </details>
+    </div>`;
+  }
+
+  /* 이번 주 — 오늘 하나만 보여주면 "그래서 이번 주는" 이 남는다 */
+  function weekBlock() {
+    const w = rp.week;
+    if (!w) return '';
+    // 점수는 25~80 사이에 모인다. 그대로 비율을 내면 막대가 다 비슷해져
+    // 이레를 한눈에 보는 뜻이 없어진다. 그 구간을 0~100으로 펴서 보여준다.
+    const H = (n) => Math.max(8, Math.min(100, Math.round((n - 22) / 58 * 100)));
+    return `<div class="week">
+      <div class="wk-head">
+        <i>이번 이레</i>
+        <span>가장 순한 날 <b>${w.best.month}/${w.best.date} ${w.best.weekday}</b></span>
+      </div>
+      <div class="wk-bars">${w.days.map((d) => `
+        <div class="wk-day${d.isToday ? ' is-today' : ''}">
+          <span class="wk-bar" style="height:${H(d.score)}%"></span>
+          <span class="wk-n">${opened() || d.isToday ? d.score : ''}</span>
+          <span class="wk-w">${esc(d.weekday)}</span>
+        </div>`).join('')}</div>
+      ${opened() ? '' : '<p class="wk-lock">이레치 점수는 구독하면 전부 보여요</p>'}
+    </div>`;
+  }
+
   function renderToday() {
     const t = rp.today;
     const tm = rp.tomorrow;
@@ -610,11 +664,13 @@
         ${t.special && t.kindLabel ? `<span class="td-kind td-kind-${esc(t.kind)}">${esc(t.kindLabel)}</span>` : ''}
       </div>
 
+      ${scoreBlock()}
       ${t.headline ? `<p class="td-headline">${esc(t.headline)}</p>` : ''}
       ${t.why ? `<p class="td-why">${esc(t.why)}</p>` : ''}
       ${t.air ? `<p class="td-air">${esc(t.air)}</p>` : ''}
 
       ${flowBlock()}
+      ${weekBlock()}
 
       ${t.special && t.kindLine ? `<div class="td-kindbox">
         <p>${esc(t.kindLine)}</p>

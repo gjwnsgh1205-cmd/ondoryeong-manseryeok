@@ -518,6 +518,73 @@ input, textarea { font: inherit; color: inherit; }
 }
 .td-open:hover { transform: translateY(-2px); }
 
+/* ── 오늘의 점수 ────────────────────────────────────────
+   숫자를 화면에서 가장 크게 둔다. 해석 문장보다 먼저 눈에 들어와야 한다.
+   그리고 그 숫자가 어디서 나왔는지 바로 아래에서 통째로 연다 —
+   근거를 여는 쪽이 유리한 서비스는 계산이 정확한 쪽뿐이다. */
+.score { display: grid; gap: .5rem; }
+.sc-head { display: flex; align-items: baseline; gap: .6rem; }
+.sc-num {
+  font-family: var(--serif); font-size: 3.4rem; line-height: 1;
+  color: var(--gold-lit); font-variant-numeric: tabular-nums;
+  text-shadow: 0 0 2rem rgba(235,209,153,.25);
+}
+.sc-band {
+  padding: .2rem .6rem; border-radius: 999px;
+  border: 1px solid var(--line); background: rgba(198,161,91,.12);
+  font-size: .8rem; color: var(--gold-lit);
+}
+.sc-why summary {
+  cursor: pointer; list-style: none;
+  padding: .4rem 0; font-size: .82rem; color: var(--paper-dim);
+  border-bottom: 1px dashed var(--line-soft);
+}
+.sc-why summary::-webkit-details-marker { display: none; }
+.sc-why summary::after { content: ' ⌄'; color: var(--gold-deep); }
+.sc-why[open] summary::after { content: ' ⌃'; }
+.sc-body { display: grid; gap: .35rem; padding-top: .6rem; }
+.sc-row {
+  display: grid; grid-template-columns: 2.6rem 1fr; gap: .6rem; align-items: baseline;
+  font-size: .84rem; line-height: 1.7;
+}
+.sc-d {
+  text-align: right; font-variant-numeric: tabular-nums;
+  font-size: .88rem; color: var(--paper-far);
+}
+.sc-up .sc-d { color: var(--el-0); }
+.sc-down .sc-d { color: var(--el-1); }
+.sc-base .sc-d { color: var(--gold); }
+.sc-t { display: grid; gap: .1rem; color: var(--paper-dim); }
+.sc-t b { font-weight: 500; color: var(--paper); }
+.sc-t i { font-style: normal; font-size: .78rem; color: var(--paper-far); }
+.sc-note {
+  font-size: .76rem; line-height: 1.7; color: var(--paper-far);
+  padding-top: .4rem; border-top: 1px dashed var(--line-soft);
+}
+
+/* ── 이번 이레 ─────────────────────────────────────────
+   오늘 하나만 주면 "그래서 이번 주는" 이 남는다. 막대 일곱 개면 충분하다. */
+.week { display: grid; gap: .5rem; }
+.wk-head { display: flex; align-items: baseline; justify-content: space-between; gap: .5rem; flex-wrap: wrap; }
+.wk-head i { font-style: normal; font-size: .7rem; letter-spacing: .12em; color: var(--paper-far); }
+.wk-head span { font-size: .78rem; color: var(--paper-dim); }
+.wk-head b { color: var(--gold-lit); }
+.wk-bars {
+  display: grid; grid-template-columns: repeat(7, 1fr); gap: .3rem;
+  align-items: end; height: 5.5rem;
+}
+.wk-day { display: grid; grid-template-rows: 1fr auto auto; gap: .2rem; justify-items: center; height: 100%; }
+.wk-bar {
+  width: 100%; min-height: 3px; align-self: end; border-radius: 4px 4px 2px 2px;
+  background: linear-gradient(180deg, rgba(198,161,91,.55), rgba(198,161,91,.18));
+}
+.wk-day.is-today .wk-bar { background: linear-gradient(180deg, var(--gold-lit), var(--gold-deep)); }
+.wk-n { font-size: .68rem; color: var(--paper-far); font-variant-numeric: tabular-nums; min-height: 1em; }
+.wk-day.is-today .wk-n { color: var(--gold-lit); }
+.wk-w { font-size: .7rem; color: var(--paper-far); }
+.wk-day.is-today .wk-w { color: var(--paper); }
+.wk-lock { font-size: .74rem; color: var(--paper-far); text-align: center; }
+
 /* 지금 어디쯤인가 — 대운(10년) · 올해 · 이번 달을 오늘 위에 얹는 칸.
    이 축이 없으면 하루가 일진 하나로만 정해져 60일마다 똑같이 돌아온다. */
 .td-flow {

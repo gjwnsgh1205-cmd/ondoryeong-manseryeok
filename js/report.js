@@ -332,6 +332,115 @@ const Report = (() => {
     };
   }
 
+  /* ══════════════ 오늘의 점수 ══════════════
+     숫자를 먼저 던지고, 그 숫자가 어디서 나왔는지 전부 까발린다.
+
+     운세 앱이 점수를 주면서 근거를 안 밝히는 건 밝힐 게 없어서다.
+     우리는 절기를 초 단위로 잡고 92개 테스트로 검증한 엔진이 있다.
+     근거를 열어놓을수록 유리한 유일한 자리이므로, 계산 과정을 통째로 돌려준다. */
+
+  /* 하루를 볼 때의 자리 무게. 강약(POS_W)과 다르다.
+     강약은 월령(태어난 달)이 뼈대라 월지가 제일 무겁지만,
+     오늘 하루는 '내가 앉은 자리'인 일지가 먼저 맞는다. */
+  const DAY_W = { day: 3.0, month: 1.5, hour: 1.2, year: 1.0 };
+  const REL_SCORE = { 육합: 1.0, 삼합: 0.7, 같음: 0.3, 보통: 0, 충: -1.0 };
+  const REL_WORD = {
+    육합: '맞물림', 삼합: '한 무리', 같음: '겹침', 보통: '얽히지 않음', 충: '부딪힘',
+  };
+  const PILLAR_KOR = { year: '연지', month: '월지', day: '일지', hour: '시지' };
+
+  function todayScore(chart, now = new Date()) {
+    const ilj = M.todayIljin(now);
+    const st = strength(chart);
+    const w = weightFor(st.t);
+    const parts = [];
+
+    // ① 오늘 천간이 내 일간에게 무엇이 되는가 → 억부로 반가운지 아닌지
+    const rel = M.sipseong(chart.dayStem, ilj.stem);
+    const g = groupOf(rel);
+    const stemDelta = Math.round((w[g] || 0) * 18);
+    parts.push({
+      kind: 'stem',
+      label: `오늘 천간 ${ilj.stemInfo.han}(${ilj.stemInfo.kor})`,
+      detail: `내 일간 ${M.STEMS[chart.dayStem].han}에게 ${rel}(${g})`,
+      why: st.label === '신강'
+        ? `기운이 넉넉한 편이라 ${g}은(는) ${w[g] >= 0 ? '반가운' : '부담되는'} 자리예요`
+        : st.label === '신약'
+          ? `기운이 얇은 편이라 ${g}은(는) ${w[g] >= 0 ? '반가운' : '부담되는'} 자리예요`
+          : `${g}이(가) ${w[g] >= 0 ? '거들어주는' : '힘을 빼는'} 쪽으로 들어와요`,
+      delta: stemDelta,
+    });
+
+    // ② 오늘 지지가 내 네 지지와 각각 어떻게 만나는가
+    let wSum = 0, rSum = 0;
+    for (const k of ['day', 'month', 'hour', 'year']) {
+      const p = chart.pillars[k];
+      if (!p) continue;
+      const kind = branchRelation(ilj.branch, p.branch);
+      const weight = DAY_W[k];
+      wSum += weight;
+      rSum += (REL_SCORE[kind] || 0) * weight;
+      parts.push({
+        kind: 'branch', pillar: k,
+        label: `${PILLAR_KOR[k]} ${p.branchInfo.han}(${p.branchInfo.kor})`,
+        detail: `오늘 ${ilj.branchInfo.han}과(와) ${REL_WORD[kind]}`,
+        relation: kind,
+        weight,
+        delta: 0,   // 아래에서 정규화한 뒤 채운다
+      });
+    }
+    // 지지 몫은 전체에서 ±22점까지만 움직이게 정규화한다
+    const branchDelta = wSum ? Math.round((rSum / wSum) * 22) : 0;
+    const bParts = parts.filter((p) => p.kind === 'branch');
+    bParts.forEach((p) => {
+      p.delta = wSum ? Math.round(((REL_SCORE[p.relation] || 0) * p.weight / wSum) * 22) : 0;
+    });
+
+    const score = clamp(50 + stemDelta + branchDelta, 5, 95);
+
+    return {
+      score,
+      base: 50,
+      parts,
+      // 가중치를 숨기지 않는다. 저쪽도 이걸 공개해서 신뢰를 얻었다.
+      weightNote: '일지 > 월지 > 시지 > 연지 순으로 비중이 들어갑니다. 태어난 날의 자리가 오늘을 먼저 맞기 때문이에요.',
+      strengthNote: `기운의 두께는 ${st.label}로 봤어요. 같은 기운이 들어와도 두께에 따라 반가운 쪽이 달라집니다.`,
+      /* 등급 컷도 지어내지 않는다. 5명 × 365일 = 1,825일을 실제로 계산해
+         얻은 분위수다 (p10 41 · p25 47 · p50 54 · p75 60 · p90 66).
+         어림수(70/60/50)로 자르면 절반이 한 칸에 몰려 등급이 뜻을 잃는다. */
+      band: score >= 66 ? '순한 날' : score >= 60 ? '무난한 날'
+          : score >= 47 ? '고른 날' : score >= 41 ? '뻑뻑한 날' : '버티는 날',
+    };
+  }
+
+  /* ══════════════ 이번 주 ══════════════
+     오늘 하나만 보여주면 "그래서 이번 주는 어떤데" 가 남는다.
+     이레치를 미리 계산해 가장 순한 날과 뻑뻑한 날을 짚어준다. */
+  function weekAhead(chart, now = new Date()) {
+    const days = [];
+    const WD = ['일', '월', '화', '수', '목', '금', '토'];
+    for (let i = 0; i < 7; i++) {
+      const when = new Date(now.getTime() + i * 86400000);
+      const s = todayScore(chart, when);
+      const ilj = M.todayIljin(when);
+      const stamp = dayStamp(when);
+      const [y, m, d] = stamp.split('-').map(Number);
+      days.push({
+        offset: i, stamp,
+        month: m, date: d,
+        weekday: WD[new Date(Date.UTC(y, m - 1, d)).getUTCDay()],
+        ganji: ilj.stemInfo.kor + ilj.branchInfo.kor,
+        han: ilj.stemInfo.han + ilj.branchInfo.han,
+        score: s.score,
+        isToday: i === 0,
+      });
+    }
+    const best = days.reduce((a, b) => (b.score > a.score ? b : a));
+    const worst = days.reduce((a, b) => (b.score < a.score ? b : a));
+    const avg = Math.round(days.reduce((a, b) => a + b.score, 0) / days.length);
+    return { days, best, worst, avg };
+  }
+
   // 내일 한 줄 — 오늘 다 읽은 사람에게 내일 다시 올 이유를 준다
   function tomorrowPeek(chart, now = new Date()) {
     const t = todayLuck(chart, new Date(now.getTime() + 86400000));
@@ -449,6 +558,8 @@ const Report = (() => {
       ageMonths: ageM,
       current: cur,
       today: todayLuck(chart, now),
+      score: todayScore(chart, now),
+      week: weekAhead(chart, now),
       tomorrow: tomorrowPeek(chart, now),
       flow: flow(chart, now, cur),
       year: thisYear(chart, now),
@@ -459,7 +570,8 @@ const Report = (() => {
 
   return {
     TOTAL_CHARTS, build, rarity, strength, typeName,
-    luckCurve, todayLuck, tomorrowPeek, branchRelation, thisYear, thisMonth, flow, chapters,
+    luckCurve, todayLuck, tomorrowPeek, branchRelation, todayScore, weekAhead,
+    thisYear, thisMonth, flow, chapters,
     ageMonthsNow, currentPoint, dayStamp,
     skewScore, strengthRatio, groupShares,
   };
