@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "ondoryeong",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "8781"],
+      "port": 8781
+    },
+    {
+      "name": "ondoryeong-docs",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "8782", "--directory", "docs"],
+      "port": 8782
+    }
+  ]
+}

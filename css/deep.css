@@ -1,0 +1,192 @@
+/* ══════════════════════════════════════════════════════════
+   deep.css — "한 번에 제대로" 상세페이지.
+   style.css 의 팔레트와 활자를 그대로 쓰고, 이 페이지에만 필요한 것만 얹는다.
+
+   이 페이지가 할 일은 하나다.
+   "미리 지어둔 글"과 "듣고 쓴 글"이 얼마나 다른지 눈으로 보여주는 것.
+   그래서 가장 큰 자리를 나란히 놓은 비교(.dp-vs)와 갈림길(.fork)에 준다.
+   ══════════════════════════════════════════════════════════ */
+
+.deep {
+  position: relative; z-index: 1;
+  max-width: 44rem; margin: 0 auto;
+  padding: max(2.5rem, env(safe-area-inset-top)) 1.25rem 3rem;
+  display: grid; gap: 3.25rem;
+}
+
+/* ── 첫 화면 ─────────────────────────────────────────── */
+.dp-hero { display: grid; gap: .9rem; justify-items: center; text-align: center; padding: 1rem 0 .5rem; }
+.dp-hero h1 {
+  font-family: var(--serif); font-size: clamp(2.1rem, 9vw, 3rem);
+  font-weight: 400; line-height: 1.2; letter-spacing: -0.02em;
+  color: var(--paper); text-wrap: balance;
+}
+.dp-sub { font-size: .95rem; line-height: 1.9; color: var(--paper-dim); text-wrap: pretty; max-width: 32rem; }
+.dp-price {
+  display: grid; gap: .2rem; justify-items: center;
+  margin-top: .5rem; padding: .9rem 1.6rem; border-radius: 12px;
+  background: linear-gradient(165deg, rgba(198,161,91,.16), rgba(12,18,32,.7));
+  border: 1px solid var(--line);
+}
+.dp-price b { font-size: 1.7rem; color: var(--gold-lit); font-variant-numeric: tabular-nums; }
+.dp-price span { font-size: .78rem; color: var(--paper-far); }
+
+/* ── 절 ──────────────────────────────────────────────── */
+.dp-sec { display: grid; gap: 1rem; }
+.dp-sec h2 {
+  display: flex; align-items: center; gap: .6rem;
+  font-family: var(--serif); font-size: 1.45rem; font-weight: 400; color: var(--paper);
+}
+.dp-sec h2::after {
+  content: ''; flex: 1; height: 1px;
+  background: linear-gradient(90deg, var(--line), transparent);
+}
+.dp-num { font-size: 1rem; color: var(--gold); }
+.dp-lead { font-size: .87rem; line-height: 1.8; color: var(--paper-far); text-wrap: pretty; }
+.dp-fine { font-size: .78rem; line-height: 1.75; color: var(--paper-far); }
+
+/* ── 나란히 놓고 보기 — 이 페이지의 핵심 ────────────────── */
+.dp-vs { display: grid; gap: .8rem; }
+@media (min-width: 40rem) { .dp-vs { grid-template-columns: 1fr 1fr; align-items: start; } }
+.vs-col {
+  display: grid; gap: .6rem; align-content: start;
+  padding: 1.1rem 1rem; border-radius: 13px;
+  font-size: .92rem; line-height: 1.9;
+}
+.vs-free { background: rgba(7,10,18,.45); border: 1px solid var(--line-soft); color: var(--paper-dim); }
+.vs-paid {
+  background: linear-gradient(165deg, rgba(30,40,66,.62), rgba(12,18,32,.7));
+  border: 1px solid var(--line); color: var(--paper);
+  box-shadow: 0 .8rem 2rem rgba(0,0,0,.35);
+}
+.vs-tag {
+  justify-self: start; padding: .18rem .6rem; border-radius: 999px;
+  border: 1px solid var(--line-soft); font-size: .7rem; color: var(--paper-far);
+}
+.vs-tag-gold { border-color: var(--gold); color: var(--gold-lit); background: rgba(198,161,91,.14); }
+.vs-head { font-family: var(--serif); font-size: 1.05rem; color: var(--paper); }
+.vs-paid .vs-head { color: var(--gold-lit); }
+.vs-eg { font-size: .86rem; color: var(--paper-far); padding-left: .7rem; border-left: 2px solid var(--gold-deep); }
+.vs-note { font-size: .78rem; line-height: 1.7; color: var(--paper-far); padding-top: .35rem; border-top: 1px dashed var(--line-soft); }
+
+/* ── 여덟 물음 ───────────────────────────────────────── */
+.dp-qs { display: grid; gap: .45rem; counter-reset: q; }
+.dp-qs li {
+  display: grid; grid-template-columns: 1.6rem 1fr; gap: .6rem; align-items: baseline;
+  font-size: .92rem; line-height: 1.7; color: var(--paper);
+}
+.dp-qs li::before {
+  counter-increment: q; content: counter(q);
+  display: grid; place-items: center;
+  width: 1.6rem; height: 1.6rem; border-radius: 50%;
+  border: 1px solid var(--line); color: var(--gold); font-size: .72rem;
+  font-variant-numeric: tabular-nums;
+}
+.dp-qs b { font-weight: 400; }
+
+/* ── 이분은 이렇게 답했네 ─────────────────────────────── */
+.dp-card {
+  display: grid; gap: .55rem;
+  padding: 1.15rem 1.1rem; border-radius: 13px;
+  background: linear-gradient(165deg, rgba(30,40,66,.55), rgba(12,18,32,.6));
+  border: 1px solid var(--line-soft);
+  font-size: .95rem; line-height: 1.95; color: var(--paper);
+}
+.said-q { font-size: .72rem; letter-spacing: .12em; color: var(--gold); }
+.said-a { font-family: var(--serif); font-size: 1rem; }
+.said-chips { display: flex; flex-wrap: wrap; gap: .3rem; padding-top: .3rem; }
+.said-chips span {
+  padding: .2rem .55rem; border-radius: 999px;
+  border: 1px solid var(--line-soft); background: rgba(7,10,18,.4);
+  font-size: .74rem; color: var(--paper-dim);
+}
+
+.dp-chart {
+  display: grid; gap: .6rem; justify-items: center;
+  padding: 1rem; border-radius: 12px;
+  background: rgba(7,10,18,.4); border: 1px solid var(--line-soft);
+}
+.dpc-pillars { display: flex; gap: .5rem; }
+.dpc-pillars span {
+  display: grid; place-items: center;
+  width: 3rem; height: 3rem; border-radius: 9px;
+  border: 1px solid var(--line); background: rgba(30,40,66,.5);
+  font-family: var(--serif); font-size: 1.1rem; line-height: 1.1; color: var(--gold-lit);
+}
+.dpc-nums { display: flex; flex-wrap: wrap; gap: .4rem; justify-content: center; }
+.dpc-nums span {
+  padding: .22rem .6rem; border-radius: 999px;
+  border: 1px solid var(--line-soft); font-size: .78rem; color: var(--paper-dim);
+}
+.dpc-nums b { color: var(--paper); font-variant-numeric: tabular-nums; }
+/* 재성 2% 처럼 '비어 있다'가 근거가 되는 자리는 눈에 띄어야 한다 */
+.dpc-low { border-color: rgba(208,96,76,.4) !important; }
+.dpc-low b { color: #E8927E; }
+.dpc-note { font-size: .74rem; color: var(--paper-far); text-align: center; }
+
+/* ── 답 ──────────────────────────────────────────────── */
+.ans-h { font-size: .72rem; letter-spacing: .14em; color: var(--gold); font-weight: 600; }
+.ans-h-big { font-size: .8rem; }
+.ans-do { display: grid; gap: .5rem; counter-reset: d; }
+.ans-do li {
+  display: grid; grid-template-columns: 1.4rem 1fr; gap: .5rem; align-items: baseline;
+  font-size: .93rem; line-height: 1.85;
+}
+.ans-do li::before {
+  counter-increment: d; content: counter(d);
+  color: var(--gold-deep); font-variant-numeric: tabular-nums;
+}
+.dp-care { border-left: 2px solid var(--el-1); }
+
+/* ── 갈림길 ─────────────────────────────────────────── */
+.dp-forks { display: grid; gap: .8rem; }
+.fork {
+  display: grid; gap: .6rem;
+  padding: 1.1rem 1.05rem; border-radius: 13px;
+  background: rgba(7,10,18,.45); border: 1px solid var(--line);
+}
+.fork-h { display: flex; align-items: center; gap: .55rem; }
+.fork-n {
+  display: grid; place-items: center;
+  width: 1.7rem; height: 1.7rem; border-radius: 50%;
+  background: rgba(198,161,91,.16); border: 1px solid var(--gold);
+  font-family: var(--serif); font-size: .85rem; color: var(--gold-lit);
+}
+.fork-h b { font-family: var(--serif); font-size: 1.1rem; font-weight: 400; color: var(--paper); }
+.fork dl { display: grid; gap: .5rem; }
+.fork dt { font-size: .7rem; letter-spacing: .1em; }
+.fork dd { font-size: .91rem; line-height: 1.85; color: var(--paper); }
+.fork dt.fit { color: var(--el-0); }
+.fork dt.fri { color: var(--el-1); }
+.fork dt.go  { color: var(--gold); }
+
+/* ── 어떻게 쓰는가 ───────────────────────────────────── */
+.dp-how { display: grid; gap: .55rem; counter-reset: h; }
+.dp-how li {
+  display: grid; grid-template-columns: auto 1fr; gap: .6rem; align-items: baseline;
+  padding: .7rem .9rem; border-radius: 10px;
+  background: rgba(7,10,18,.4); border-left: 2px solid var(--gold-deep);
+  font-size: .89rem; line-height: 1.8; color: var(--paper-dim);
+}
+.dp-how b { color: var(--gold-lit); font-weight: 600; white-space: nowrap; }
+
+/* ── 사는 자리 ───────────────────────────────────────── */
+.dp-buy {
+  display: grid; gap: .9rem; justify-items: center; text-align: center;
+  padding: 1.6rem 1.2rem; border-radius: 14px;
+  background: linear-gradient(165deg, rgba(198,161,91,.14), rgba(12,18,32,.72));
+  border: 1px solid var(--line);
+}
+.dp-anchor { display: flex; flex-wrap: wrap; gap: .4rem; justify-content: center; font-size: .76rem; color: var(--paper-far); }
+.dp-anchor span { padding: .2rem .6rem; border: 1px solid var(--line-soft); border-radius: 999px; }
+.dp-us { border-color: var(--gold) !important; color: var(--gold-lit) !important; }
+.dp-cta {
+  display: block; width: 100%; max-width: 22rem;
+  padding: 1rem; border-radius: 11px; text-decoration: none; text-align: center;
+  background: linear-gradient(180deg, var(--gold-lit), var(--gold) 55%, var(--gold-deep));
+  color: #1A1207; font-weight: 700; font-size: 1rem;
+  box-shadow: 0 .7rem 1.6rem rgba(198,161,91,.3);
+  transition: transform .16s var(--ease);
+}
+.dp-cta:hover { transform: translateY(-2px); }
+@media (prefers-reduced-motion: reduce) { .dp-cta { transition: none; } }

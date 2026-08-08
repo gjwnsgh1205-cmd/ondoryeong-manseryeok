@@ -16,7 +16,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 DIST = ROOT / "docs"
 
-REQUIRED_FILES = ["index.html"]
+REQUIRED_FILES = ["index.html", "deep.html"]
 OPTIONAL_FILES = ["README.md"]
 DIRS = ["css", "js", "assets/web", "assets/video"]
 
@@ -40,6 +40,11 @@ def main():
     for d in DIRS:
         shutil.copytree(ROOT / d, staging / d, dirs_exist_ok=True)
 
+    # 스크립트·스타일에 내용 해시를 붙인다.
+    # GitHub Pages 는 캐시를 오래 물고 있어서, 이걸 안 하면 index.html 만 새로 받고
+    # app.js 는 옛것을 쓰는 상태가 된다 (개발 중에 실제로 겪었다).
+    stamp_assets(staging)
+
     if DIST.exists():
         shutil.rmtree(DIST)
     staging.replace(DIST)
@@ -51,5 +56,32 @@ def main():
     print("GitHub Pages 소스를 main 브랜치 /docs 로 잡으면 그대로 서비스된다.")
 
 
+
+def stamp_assets(staging):
+    """index.html 안의 로컬 js/css 참조에 ?v=<내용해시8> 를 붙인다."""
+    import hashlib, re
+    html_path = staging / "index.html"
+    html = html_path.read_text(encoding="utf-8")
+
+    def digest(rel):
+        f = staging / rel
+        if not f.exists():
+            return None
+        return hashlib.sha256(f.read_bytes()).hexdigest()[:8]
+
+    def sub(m):
+        attr, rel = m.group(1), m.group(2)
+        h = digest(rel)
+        if h is None:
+            print(f"  ! 참조된 파일이 없다: {rel}")
+            return m.group(0)
+        return f'{attr}="{rel}?v={h}"'
+
+    html, n = re.subn(r'(src|href)="((?:js|css)/[^"?]+)"', sub, html)
+    html_path.write_text(html, encoding="utf-8")
+    print(f"  캐시 무효화: {n}개 참조에 해시 부착")
+
+
 if __name__ == "__main__":
     main()
+

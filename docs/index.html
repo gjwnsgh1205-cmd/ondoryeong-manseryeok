@@ -2,187 +2,340 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="color-scheme" content="dark">
-<title>온도령 — 만세력 마음 상담소</title>
-<link rel="stylesheet" href="css/style.css">
+<meta name="description" content="태어난 여덟 글자를 절기까지 계산해 읽어드립니다. 온도령 만세력.">
+<title>온도령 — 여덟 글자를 읽다</title>
+<!-- 카톡·문자에 링크를 붙였을 때 뜨는 미리보기.
+     og:image 는 반드시 절대 경로여야 한다 — 카카오 미리보기 서버가 상대 경로를 못 읽는다.
+     배포 주소가 바뀌면 tools/build.py 가 여기를 다시 써준다. -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="온도령 만세력">
+<meta property="og:title" content="온도령 — 여덟 글자를 읽다">
+<meta property="og:description" content="태어난 때만 알려주면 되네. 절기와 시차까지 짚어 자네의 명식을 세우겠네.">
+<meta property="og:image" content="https://gjwnsgh1205-cmd.github.io/ondoryeong-manseryeok/assets/web/doryeong-reveal.png">
+<meta property="og:image:width" content="520">
+<meta property="og:image:height" content="1054">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="stylesheet" href="css/style.css?v=a10ee368">
 </head>
 <body>
 
-<header class="site-header">
-  <div class="plaque">
-    <span class="plaque-deco">☾</span>
-    <div class="plaque-text">
-      <h1>온도령 만세력 상담소</h1>
-      <p>溫道令 · 마음의 온도를 살피는 사주 풀이</p>
-    </div>
-    <span class="plaque-deco">✦</span>
-  </div>
-</header>
+<canvas id="sky" class="sky" aria-hidden="true"></canvas>
 
-<main>
+<main id="app">
 
-  <!-- ══════════ 1단계 · 고민 ══════════ -->
-  <section id="step-concern" class="step">
-    <div class="dr-scene">
-      <div id="dr-hero" class="dr-hero"></div>
-      <div class="bubble bubble-hero" id="dr-greet"></div>
-    </div>
+<!-- ════════════════════════════════════════════════════════
+     문 앞 — 여기서 묻는 것은 태어난 때, 그것 하나뿐이다.
+     ════════════════════════════════════════════════════════ -->
+<section id="gate" class="scene gate">
 
-    <div class="card">
-      <h2 class="section-title">무엇이 궁금해서 오셨는가</h2>
-      <p class="section-sub">보고 싶은 것을 고르거나, 지금 마음에 걸리는 일을 그냥 이야기해 주시게.</p>
-
-      <div id="topic-grid" class="topic-grid"></div>
-
-      <div class="own-story">
-        <label for="f-situation" class="field-label">직접 이야기하기</label>
-        <textarea id="f-situation" rows="3"
-          placeholder="예) 3년 사귄 사람과 두 달 전에 헤어졌어요. 아직 정리가 안 됐는데 연락해도 될지 모르겠어요."></textarea>
-        <p class="hint">골라둔 주제가 있으면 함께 담아 전하겠네. 없이 이야기만 해도 좋다네.</p>
-      </div>
-
-      <button id="btn-to-birth" class="btn-main" disabled>이야기 들려주고 다음으로</button>
-    </div>
-  </section>
-
-  <!-- ══════════ 2단계 · 생시 ══════════ -->
-  <section id="step-birth" class="step hidden">
-    <div class="chosen-bar" id="chosen-bar"></div>
-
-    <div class="card">
-      <h2 class="section-title">태어난 날과 시각을 알려주시게</h2>
-      <p class="section-sub">이걸 알아야 자네의 명식을 세울 수 있다네. 계산은 이 브라우저 안에서만 일어나네.</p>
-
-      <form id="birth-form" autocomplete="off">
-        <div class="form-grid">
-          <div class="field">
-            <label for="f-year">태어난 해 (양력)</label>
-            <input type="number" id="f-year" min="1900" max="2050" placeholder="1990" required>
-          </div>
-          <div class="field">
-            <label for="f-month">월</label>
-            <input type="number" id="f-month" min="1" max="12" placeholder="6" required>
-          </div>
-          <div class="field">
-            <label for="f-day">일</label>
-            <input type="number" id="f-day" min="1" max="31" placeholder="15" required>
-          </div>
-          <div class="field time-field">
-            <label for="f-hour">태어난 시각</label>
-            <div class="time-inputs">
-              <input type="number" id="f-hour" min="0" max="23" placeholder="14">
-              <span>:</span>
-              <input type="number" id="f-minute" min="0" max="59" placeholder="30">
-            </div>
-          </div>
-        </div>
-
-        <div class="form-row">
-          <label class="check"><input type="checkbox" id="f-unknown-time"> 태어난 시각을 몰라요</label>
-          <label class="check"><input type="checkbox" id="f-true-solar" checked> 경도 보정 (동경 127.5°, −30분)</label>
-        </div>
-
-        <div class="form-row gender-row">
-          <span class="field-label">성별</span>
-          <div class="seg">
-            <label><input type="radio" name="gender" value="F" checked><span>여성</span></label>
-            <label><input type="radio" name="gender" value="M"><span>남성</span></label>
-          </div>
-        </div>
-
-        <!-- 궁합·재회처럼 상대가 필요한 주제일 때만 열린다 -->
-        <fieldset id="partner-box" class="partner-box hidden">
-          <legend>상대의 생년월일 <span id="partner-optional" class="legend-note"></span></legend>
-          <div class="form-grid form-grid-3">
-            <div class="field">
-              <label for="p-year">해</label>
-              <input type="number" id="p-year" min="1900" max="2050" placeholder="1991">
-            </div>
-            <div class="field">
-              <label for="p-month">월</label>
-              <input type="number" id="p-month" min="1" max="12" placeholder="3">
-            </div>
-            <div class="field">
-              <label for="p-day">일</label>
-              <input type="number" id="p-day" min="1" max="31" placeholder="8">
-            </div>
-          </div>
-          <p class="hint">시각까지는 몰라도 괜찮다네. 아는 만큼만 적으시게.</p>
-        </fieldset>
-
-        <button type="submit" class="btn-main">도령에게 상담 청하기</button>
-        <p class="form-note">음력 생일만 아신다면 양력으로 변환해 입력해 주세요. 1954–1961년 출생(표준시 변경), 1948–60·1987–88년 서머타임은 자동 보정됩니다.</p>
-      </form>
-
-      <button id="btn-back-concern" class="btn-link">← 고민 다시 고르기</button>
-    </div>
-  </section>
-
-  <!-- ══════════ 로딩 ══════════ -->
-  <div id="loading-overlay" class="loading-overlay hidden" aria-hidden="true"
-       role="status" aria-live="polite" aria-atomic="true">
-    <div class="loading-box">
-      <div id="dr-loading" class="dr-loading"></div>
-      <p class="loading-text">어디 보자…, 만세력을 넘겨보는 중이라네</p>
-      <div class="loading-dots"><span></span><span></span><span></span></div>
-    </div>
+  <!-- 친구가 보낸 링크로 들어왔을 때만 뜬다 -->
+  <div id="from-link" class="from-link hidden">
+    <span class="fl-name" id="fl-name"></span>
+    <span class="fl-note">친구가 보낸 유형일세. 자네 것도 여덟 글자만 있으면 바로 나온다네.</span>
   </div>
 
-  <!-- ══════════ 3단계 · 상담 ══════════ -->
-  <section id="step-consult" class="step hidden">
-    <h2 id="consult-heading" class="sr-only" tabindex="-1">온도령과의 상담</h2>
+  <div class="gate-hero">
+    <div id="dr-gate" class="dr-gate"></div>
+  </div>
 
-    <!-- 명식 요약 (접힘) -->
-    <details class="chart-fold" id="chart-fold">
-      <summary>
-        <span class="fold-label">자네의 명식</span>
-        <span class="fold-brief" id="chart-brief"></span>
-      </summary>
-      <div class="fold-body">
-        <div id="pillar-board" class="pillar-board"></div>
-        <p class="board-note" id="board-note"></p>
-        <div id="element-chart" class="element-chart"></div>
-        <div id="daeun-timeline" class="daeun-timeline"></div>
-      </div>
-    </details>
+  <div class="gate-copy">
+    <p class="eyebrow">溫道令 · 온도령</p>
+    <h1 class="gate-title">여덟 글자면<br>되네.</h1>
+    <p class="gate-sub">태어난 때를 일러주시게.<br>절기와 시차까지 짚어 자네의 명식을 세우겠네.</p>
+  </div>
 
-    <!-- 대화 -->
-    <div class="chat" id="chat"></div>
+  <form id="birth-form" class="gate-form" autocomplete="off" novalidate>
 
-    <!-- 이용권 안내 -->
-    <div id="pass-box" class="pass-box hidden">
-      <h3>더 깊이 보려면</h3>
-      <p id="pass-copy">여기까지는 명식의 큰 줄기라네. 자네 사정에 맞춰 제대로 짚으려면 한 걸음 더 들어가야 하지.</p>
-      <button id="btn-pass" class="btn-main btn-pass">상담권으로 이어서 묻기 · 4,900원</button>
-      <p class="hint" id="pass-note">상담권 한 장으로 5번 더 물을 수 있다네. 결제 기능은 아직 준비 중이라, 지금은 눌러도 그냥 열리네.</p>
+    <div class="cal-seg" role="radiogroup" aria-label="달력 종류">
+      <label><input type="radio" name="cal" value="solar" checked><span>양력</span></label>
+      <label><input type="radio" name="cal" value="lunar"><span>음력</span></label>
     </div>
 
-    <!-- 입력 -->
-    <form id="ask-form" class="ask-bar">
-      <textarea id="f-ask" rows="1" placeholder="도령에게 물어보시게…"></textarea>
-      <button type="submit" id="btn-ask" class="btn-ask" aria-label="보내기">보내기</button>
-    </form>
-    <p class="turns-left" id="turns-left"></p>
+    <div class="date-row">
+      <div class="fld fld-y">
+        <input type="number" id="f-year" inputmode="numeric" min="1900" max="2050" placeholder="1990" required>
+        <label for="f-year">년</label>
+      </div>
+      <div class="fld">
+        <input type="number" id="f-month" inputmode="numeric" min="1" max="12" placeholder="6" required>
+        <label for="f-month">월</label>
+      </div>
+      <div class="fld">
+        <input type="number" id="f-day" inputmode="numeric" min="1" max="31" placeholder="15" required>
+        <label for="f-day">일</label>
+      </div>
+    </div>
 
-    <div class="actions">
-      <button id="btn-again" class="btn-ghost">처음부터 다시</button>
+    <label class="chk chk-leap hidden" id="leap-wrap">
+      <input type="checkbox" id="f-leap"><span>윤달이라네</span>
+    </label>
+    <p class="conv-note hidden" id="conv-note" aria-live="polite"></p>
+
+    <div class="time-row" id="time-row">
+      <div class="fld fld-h">
+        <input type="number" id="f-hour" inputmode="numeric" min="0" max="23" placeholder="14">
+        <label for="f-hour">시</label>
+      </div>
+      <span class="colon">:</span>
+      <div class="fld fld-h">
+        <input type="number" id="f-minute" inputmode="numeric" min="0" max="59" placeholder="30">
+        <label for="f-minute">분</label>
+      </div>
+    </div>
+
+    <label class="chk"><input type="checkbox" id="f-unknown-time"><span>태어난 시각은 모른다네</span></label>
+
+    <div class="sex-seg" role="radiogroup" aria-label="성별">
+      <label><input type="radio" name="gender" value="F" checked><span>여성</span></label>
+      <label><input type="radio" name="gender" value="M"><span>남성</span></label>
+    </div>
+
+    <p class="err" id="form-err" role="alert" aria-live="assertive"></p>
+
+    <button type="submit" class="btn-cast">
+      <span class="btn-cast-label">명식 세우기</span>
+      <span class="btn-cast-sub">계산은 이 기기 안에서만 일어나네</span>
+    </button>
+  </form>
+
+  <details class="gate-more">
+    <summary>어떻게 계산하는가</summary>
+    <div class="gate-more-body">
+      <p>태양의 황경을 직접 계산해 24절기가 드는 순간을 초 단위로 잡네. 입춘과 절입 시각을 넘겼는지에 따라 연주와 월주가 갈리기 때문이지.</p>
+      <p>1908년과 1954–1961년의 표준시 변경, 1948–1960년과 1987–1988년의 서머타임도 자동으로 보정하네. 태어난 시각이 바뀌면 시주가 통째로 달라지니 말이야.</p>
+      <p>다룰 수 있는 해는 1900년부터 2050년까지라네.</p>
+    </div>
+  </details>
+</section>
+
+
+<!-- ════════════════════════════════════════════════════════
+     만세력을 넘기는 동안
+     ════════════════════════════════════════════════════════ -->
+<div id="veil" class="veil hidden" role="status" aria-live="polite" aria-atomic="true">
+  <div class="veil-inner">
+    <div id="dr-veil" class="dr-veil"></div>
+    <p class="veil-text" id="veil-text">어디 보자…</p>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════
+     풀이 — 스크롤로 읽는다
+     ════════════════════════════════════════════════════════ -->
+<section id="report" class="report hidden" aria-labelledby="rp-name">
+
+  <!-- 저장된 풀이를 되살렸을 때만 뜬다 (같은 기기를 나눠 쓰는 경우를 위해) -->
+  <div id="resume-bar" class="resume-bar hidden">
+    <span>지난번에 보던 풀이를 이어서 펼쳤네.</span>
+    <button type="button" id="btn-resume-new">다른 사람 보기</button>
+  </div>
+
+  <!-- 각인 -->
+  <header class="rp-brand reveal">
+    <div id="dr-reveal" class="dr-reveal"></div>
+    <p class="rp-eyebrow" id="rp-eyebrow">자네에게 새겨진 이름</p>
+    <h2 class="rp-name" id="rp-name"></h2>
+    <p class="rp-headline" id="rp-headline"></p>
+    <div class="rp-stats" id="rp-stats"></div>
+  </header>
+
+  <!-- 여덟 글자 -->
+  <section class="rp-sec reveal" id="sec-pillars">
+    <div class="rp-head">
+      <span class="rp-num">一</span>
+      <h3>여덟 글자</h3>
+      <p class="rp-lead">태어난 해·달·날·시가 각각 두 글자씩. 이것이 자네의 명식이네.</p>
+    </div>
+    <div class="board" id="board"></div>
+    <p class="board-foot" id="board-foot"></p>
+  </section>
+
+  <!-- 기질 -->
+  <section class="rp-sec reveal" id="sec-nature">
+    <div class="rp-head">
+      <span class="rp-num">二</span>
+      <h3>타고난 결</h3>
+      <p class="rp-lead">넉 자 중 가운데 아랫자리, 태어난 날의 천간이 곧 자네일세.</p>
+    </div>
+    <div class="nature" id="nature"></div>
+  </section>
+
+  <!-- 오행 -->
+  <section class="rp-sec reveal" id="sec-elements">
+    <div class="rp-head">
+      <span class="rp-num">三</span>
+      <h3>다섯 기운의 저울</h3>
+      <p class="rp-lead">여덟 글자에 숨은 기운까지 헤아려 무게를 달았네.</p>
+    </div>
+    <div class="oheng" id="oheng"></div>
+    <p class="oheng-foot" id="oheng-foot"></p>
+  </section>
+
+  <!-- 대운 곡선 -->
+  <section class="rp-sec reveal" id="sec-curve">
+    <div class="rp-head">
+      <span class="rp-num">四</span>
+      <h3>인생의 물결</h3>
+      <p class="rp-lead">열 해마다 기운이 갈리네. 지금 자네가 선 자리를 별로 찍어두었네.
+        높낮이는 좋고 나쁨이 아니라 바람의 방향일세 — 위는 기운이 밀어주는 때, 아래는 제 힘으로 밀고 가는 때라네.</p>
+    </div>
+    <div class="curve-wrap">
+      <div id="curve"></div>
+    </div>
+    <div class="curve-now" id="curve-now" aria-live="polite"></div>
+  </section>
+
+  <!-- 오늘 -->
+  <section class="rp-sec reveal" id="sec-today">
+    <div class="rp-head">
+      <span class="rp-num">五</span>
+      <h3>오늘</h3>
+      <p class="rp-lead">날마다 바뀌는 것이니, 내일 다시 와서 보시게.</p>
+    </div>
+    <div class="today" id="today"></div>
+  </section>
+
+  <!-- 잠긴 문 -->
+  <section class="rp-sec reveal" id="sec-locked">
+    <div class="rp-head">
+      <span class="rp-num">六</span>
+      <h3>아직 열지 않은 것</h3>
+      <p class="rp-lead" id="locked-lead"></p>
+    </div>
+    <ul class="ch-list" id="ch-list"></ul>
+
+    <div class="unlock" id="unlock">
+      <div class="tier">
+        <div class="tier-head">
+          <span class="tier-name">달마다</span>
+          <b class="tier-price" id="unlock-price">4,900원</b>
+        </div>
+        <ul class="tier-list">
+          <li>매일의 운세를 가린 곳 없이 전부</li>
+          <li>아직 열지 않은 여덟 장</li>
+          <li>광고 없이</li>
+        </ul>
+        <button id="btn-unlock" class="btn-unlock">전부 열기</button>
+        <p class="unlock-note" id="unlock-note"></p>
+      </div>
+
+      <div class="tier tier-deep">
+        <div class="tier-head">
+          <span class="tier-name">한 번에 제대로</span>
+          <b class="tier-price" id="deep-price">19,800원</b>
+        </div>
+        <p class="tier-lead">지금 자네 사정을 자세히 일러주면, 그 위에 명식을 얹어 따로 짚어드리네.
+          미리 지어둔 글이 아니라 자네 이야기를 듣고 쓰는 풀이일세.</p>
+        <div class="tier-anchor">
+          <span>동네 점집 10~30만원</span>
+          <span>다른 사주 앱 3~8만원</span>
+        </div>
+        <button id="btn-deep" class="btn-ghost-gold">내 상황 일러주고 받아보기</button>
+        <a class="tier-see" href="deep.html">무엇을 받게 되는지 먼저 보기 →</a>
+        <p class="unlock-note" id="deep-note"></p>
+      </div>
     </div>
   </section>
+
+  <!-- 상담 (뒷문) -->
+  <section class="rp-sec reveal" id="sec-ask">
+    <div class="ask-invite">
+      <div id="dr-ask" class="dr-ask"></div>
+      <div class="ask-invite-copy">
+        <h3>더 묻고 싶은 것이 있는가</h3>
+        <p>명식은 큰 줄기일 뿐이네. 자네 사정을 말해주면 그 위에 얹어 짚어보겠네.</p>
+        <div class="ask-chips" id="ask-chips"></div>
+        <button id="btn-to-consult" class="btn-ghost-gold">도령에게 말 걸기</button>
+      </div>
+    </div>
+  </section>
+
+  <div class="rp-actions">
+    <button id="btn-share" class="btn-ghost">이 풀이 간직하기</button>
+    <button id="btn-reset" class="btn-ghost">다른 사람 보기</button>
+  </div>
+</section>
+
+
+<!-- ════════════════════════════════════════════════════════
+     내 상황 — 19,800원짜리 풀이를 쓰기 위해 묻는 여덟 가지.
+     무료 구간은 명식만으로 되지만, 여기부터는 사람 이야기가 있어야 쓸 수 있다.
+     ════════════════════════════════════════════════════════ -->
+<section id="step-situation" class="situation hidden" aria-labelledby="sit-title">
+  <header class="sit-top">
+    <button id="btn-sit-back" class="btn-back" aria-label="풀이로 돌아가기">← 풀이</button>
+    <h2 id="sit-title">자네 사정을 일러주시게</h2>
+  </header>
+
+  <p class="sit-lead">
+    여덟 가지를 여쭙네. <b>첫 물음만 답해주면 되고</b>, 나머지는 건너뛰어도 좋다네.
+    다만 많이 일러줄수록 자네 이야기에 가깝게 쓸 수 있지.
+  </p>
+
+  <form id="sit-form" autocomplete="off" novalidate>
+    <div id="sit-fields"></div>
+    <p class="err" id="sit-err" role="alert" aria-live="assertive"></p>
+    <div class="sit-foot">
+      <span class="sit-count" id="sit-count"></span>
+      <button type="submit" class="btn-unlock" id="btn-sit-go">이 이야기로 풀이 받기</button>
+    </div>
+    <p class="unlock-note">적어주신 이야기는 풀이를 쓰는 데만 쓰이고, 생년월일은 서버로 보내지 않네.
+      계산이 끝난 여덟 글자만 넘어간다네.</p>
+  </form>
+</section>
+
+
+<!-- ════════════════════════════════════════════════════════
+     상담 — 원한 사람만 들어온다
+     ════════════════════════════════════════════════════════ -->
+<section id="consult" class="consult hidden" aria-labelledby="cs-title">
+  <header class="cs-top">
+    <button id="btn-back-report" class="btn-back" aria-label="풀이로 돌아가기">← 풀이</button>
+    <h2 id="cs-title">온도령과의 이야기</h2>
+    <span class="cs-name" id="cs-name"></span>
+  </header>
+
+  <div class="topic-strip" id="topic-strip"></div>
+
+  <div class="chat" id="chat"></div>
+
+  <div id="pass-box" class="pass-box hidden">
+    <p id="pass-copy"></p>
+    <button id="btn-pass" class="btn-unlock">상담권으로 이어 묻기 · 4,900원</button>
+    <p class="unlock-note" id="pass-note"></p>
+  </div>
+
+  <form id="ask-form" class="ask-bar">
+    <textarea id="f-ask" rows="1" placeholder="도령에게 물어보시게…" aria-label="질문"></textarea>
+    <button type="submit" id="btn-ask" class="btn-send" aria-label="보내기">
+      <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M3 20.5 21 12 3 3.5l3.2 7.2L14 12l-7.8 1.3z" fill="currentColor"/></svg>
+    </button>
+  </form>
+  <p class="turns-left" id="turns-left"></p>
+</section>
 
 </main>
 
 <footer class="site-footer">
-  <p>이 앱의 풀이는 명리학 이론을 바탕으로 한 자기 이해의 거울이며, 의학적 진단이나 심리치료를 대체하지 않습니다.</p>
-  <p>마음이 많이 힘든 날에는 전문가와 이야기해 주세요 — 자살예방 상담전화 <strong>109</strong> · 정신건강 위기상담 <strong>1577-0199</strong> (24시간)</p>
+  <p>이 풀이는 명리학 이론에 기댄 자기 이해의 거울이며, 의학적 진단이나 심리치료를 대신하지 않습니다.</p>
+  <p>마음이 많이 힘든 날에는 <strong>109</strong>(자살예방 상담) 또는 <strong>1577-0199</strong>(정신건강 위기상담)로 전화해 주세요. 24시간 열려 있습니다.</p>
 </footer>
 
-<script src="js/vendor/astronomy.browser.min.js"></script>
-<script src="js/manseryeok.js"></script>
-<script src="js/counsel.js"></script>
-<script src="js/doryeong.js"></script>
-<script src="js/topics.js"></script>
-<script src="js/consult.js"></script>
-<script src="js/app.js"></script>
+<script src="js/vendor/astronomy.browser.min.js?v=f41139a8"></script>
+<script src="js/vendor/korean-lunar.min.js?v=b3ec17b1"></script>
+<script src="js/manseryeok.js?v=1a7728f6"></script>
+<script src="js/content.js?v=08f24497"></script>
+<script src="js/report.js?v=8d1e23ba"></script>
+<script src="js/counsel.js?v=0393b86d"></script>
+<script src="js/doryeong.js?v=b5bc1963"></script>
+<script src="js/topics.js?v=6d45da56"></script>
+<script src="js/situation.js?v=9d1a2713"></script>
+<script src="js/share.js?v=25cf8aaf"></script>
+<script src="js/consult.js?v=11df8614"></script>
+<script src="js/sky.js?v=5018935a"></script>
+<script src="js/app.js?v=3865d56b"></script>
 </body>
 </html>

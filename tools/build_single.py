@@ -24,14 +24,19 @@ ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "dist" / "share"
 MEDIA = OUT / "_media"          # 번들 전용 경량 사본
 
-# 인라인할 스크립트 (index.html의 로드 순서와 같아야 한다)
-SCRIPTS = [
-    "js/vendor/astronomy.browser.min.js",
-    "js/manseryeok.js",
-    "js/counsel.js",
-    "js/doryeong.js",
-    "js/app.js",
-]
+# 인라인할 목록은 여기 적지 않는다. 손으로 베껴 적으면 스크립트가 늘 때마다
+# 조용히 어긋나기 때문이다 (실제로 content/report/topics/consult/sky 가 빠진 채
+# 번들이 나가서 "Report is not defined" 로 죽었다).
+# index.html 의 로드 순서가 곧 의존 순서이니, 매번 거기서 읽는다.
+# tools/build.py 가 붙이는 ?v=해시 가 달려 있어도 견디게 쿼리스트링을 허용한다.
+SCRIPT_TAG = re.compile(
+    r'[^\S\n]*<script\b[^>]*\bsrc\s*=\s*"([^"]*)"[^>]*>\s*</script>\n?', re.I)
+STYLE_TAG = re.compile(
+    r'[^\S\n]*<link\b(?=[^>]*\brel\s*=\s*"stylesheet")[^>]*\bhref\s*=\s*"([^"]*)"[^>]*>\n?', re.I)
+
+# 소스맵 주석이 남으면 개발자도구가 없는 .map 을 찾아 나선다. 외부 요청 0건이 목표다.
+# (korean-lunar.min.js 는 개행 없이 이 주석으로 끝난다)
+SOURCEMAP = re.compile(r'^[^\S\n]*//[#@]\s*sourceMappingURL=.*$', re.M)
 
 # 링크 하나로 통째로 실어 보내야 하므로 배포본보다 더 줄인다.
 # 480px/CRF26 → 420px/CRF28 로 낮춰도 표시 크기(약 225px)에서는 차이가 보이지 않는다.
@@ -92,43 +97,96 @@ def js_object(name: str, table: dict) -> str:
     return f"const {name} = {{\n" + rows + "\n};"
 
 
+def local_ref(url: str):
+    """인라인할 수 있는 참조면 저장소 기준 경로를, 외부 참조면 None 을 준다."""
+    if not url or url.startswith(("http://", "https://", "//", "data:", "#")):
+        return None
+    return url.split("?", 1)[0].split("#", 1)[0]
+
+
+def read_refs(html: str, pattern: re.Pattern, what: str) -> list:
+    """index.html 이 적어둔 순서 그대로 돌려준다. 순서가 곧 의존 순서다."""
+    refs = []
+    for url in pattern.findall(html):
+        rel = local_ref(url)
+        if rel is None:
+            continue
+        if not (ROOT / rel).exists():
+            raise SystemExit(f"index.html 이 가리키는 {what} 없음: {rel}")
+        refs.append(rel)
+    if not refs:
+        raise SystemExit(f"index.html 에서 {what}를 하나도 찾지 못했습니다.")
+    return refs
+
+
+def strip_inlined(html: str, pattern: re.Pattern) -> str:
+    """인라인한 태그만 지운다. 외부 참조는 지우면 기능이 사라지므로 남겨 둔다."""
+    return pattern.sub(lambda m: "" if local_ref(m.group(1)) else m.group(0), html)
+
+
+def inline_text(rel: str) -> str:
+    return SOURCEMAP.sub("", (ROOT / rel).read_text(encoding="utf-8")).strip()
+
+
+def script_tag(label: str, code: str) -> str:
+    """파일마다 <script> 를 따로 둔다. index.html 과 실행 단위가 같아져야
+    'use strict' 범위나 세미콜론 생략에 걸려 뒷 파일이 통째로 먹히지 않는다."""
+    return f"<script>\n/* ==== {label} ==== */\n{code}\n</script>"
+
+
+def external_refs(doc: str) -> list:
+    """data:/앵커를 뺀 src·href 는 전부 네트워크를 타는 참조다.
+    인라인한 <script> 속은 마크업이 아니라 코드라 검사에서 뺀다 — doryeong.js 는
+    data URI 를 런타임에 끼워 넣는 `src="${mp4}"` 같은 템플릿을 들고 있다.
+    다만 src 가 달린 <script> 는 남긴다. 그게 바로 잡아내려는 대상이다."""
+    markup = re.sub(r'<script\b(?![^>]*\bsrc\s*=)[^>]*>.*?</script>', "", doc,
+                    flags=re.S | re.I)
+    return sorted({m.group(0) for m in re.finditer(r'\b(?:src|href)="([^"]*)"', markup)
+                   if local_ref(m.group(1)) is not None})
+
+
 def build():
     html = (ROOT / "index.html").read_text(encoding="utf-8")
 
     title_m = re.search(r"<title>(.*?)</title>", html, re.S)
     title = title_m.group(1).strip() if title_m else "온도령 만세력 상담소"
 
+    desc_m = re.search(r'<meta name="description" content="([^"]*)"', html, re.I)
+    desc = desc_m.group(1) if desc_m else ""
+
+    # <link> 는 <head> 에 있으므로 문서 전체에서 읽는다.
+    scripts = read_refs(html, SCRIPT_TAG, "스크립트")
+    styles = read_refs(html, STYLE_TAG, "스타일시트")
+
     body_m = re.search(r"<body[^>]*>(.*)</body>", html, re.S)
     if not body_m:
         raise SystemExit("index.html에서 <body>를 찾지 못했습니다.")
-    body = body_m.group(1)
-    body = re.sub(r'\s*<script src="[^"]*"></script>', "", body)  # 외부 스크립트 태그 제거
+    body = strip_inlined(strip_inlined(body_m.group(1), SCRIPT_TAG), STYLE_TAG).strip("\n")
 
-    css = (ROOT / "css" / "style.css").read_text(encoding="utf-8")
+    css = "\n".join(inline_text(rel) for rel in styles)
 
     prepare_media()
     first, videos = collect_assets()
     if not first or not videos:
         raise SystemExit("인라인할 미디어를 만들지 못했습니다. tools/optimize_media.py 를 먼저 실행하세요.")
 
-    js_parts = [js_object("DR_ASSETS", first)]
-    for s in SCRIPTS:
-        p = ROOT / s
-        if not p.exists():
-            raise SystemExit(f"필수 스크립트 없음: {s}")
-        js_parts.append(f"/* ==== {s} ==== */\n" + p.read_text(encoding="utf-8"))
-    js = "\n\n".join(js_parts)
+    # DR_ASSETS 는 doryeong.js 보다 먼저 있어야 한다 (경로→data URI 표를 그때 읽는다).
+    js_parts = [script_tag("bundle: 첫 페인트용 에셋", js_object("DR_ASSETS", first))]
+    js_parts += [script_tag(rel, inline_text(rel)) for rel in scripts]
+    js = "\n".join(js_parts)
 
     # 영상은 별도 스크립트로 뒤에 둔다. 앱이 먼저 그려지고 poster가 보인 뒤 영상이 붙는다.
-    js_video = js_object("DR_VIDEOS", videos) + "\nDoryeong.attachVideos(DR_VIDEOS);"
+    js_video = script_tag(
+        "bundle: 영상",
+        js_object("DR_VIDEOS", videos) + "\nDoryeong.attachVideos(DR_VIDEOS);")
 
     # 스크립트는 반드시 본문 뒤에 온다. app.js가 즉시 실행되며 DOM을 찾기 때문이다.
     inner = (
         f"<title>{title}</title>\n"
         f"<style>\n{css}\n</style>\n"
         f"{body}\n"
-        f"<script>\n{js}\n</script>\n"
-        f"<script defer>\n{js_video}\n</script>\n"
+        f"{js}\n"
+        f"{js_video}\n"
     )
 
     doc = (
@@ -136,16 +194,16 @@ def build():
         '<html lang="ko">\n'
         "<head>\n"
         '<meta charset="UTF-8">\n'
-        '<meta name="viewport" content="width=device-width, initial-scale=1.0">\n'
+        '<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">\n'
         '<meta name="color-scheme" content="dark">\n'
-        '<meta name="description" content="생년월일시로 사주 명식을 세우고 심리·생애주기 상담의 언어로 풀어주는 온도령 만세력 상담소">\n'
+        f'<meta name="description" content="{desc}">\n'
         f"<title>{title}</title>\n"
         f"<style>\n{css}\n</style>\n"
         "</head>\n"
         "<body>\n"
         f"{body}\n"
-        f"<script>\n{js}\n</script>\n"
-        f"<script>\n{js_video}\n</script>\n"
+        f"{js}\n"
+        f"{js_video}\n"
         "</body>\n</html>\n"
     )
 
@@ -157,9 +215,18 @@ def build():
 
     for f in (full, frag):
         print(f"{f.name}: {f.stat().st_size / 1024 / 1024:.2f}MB")
-    head_kb = len(inner.split("<script defer>")[0].encode()) / 1024
-    print(f"첫 페인트까지 {head_kb / 1024:.2f}MB, 영상은 그 뒤에 붙음")
-    print(f"인라인 에셋 {len(first) + len(videos)}개, 외부 요청 0건")
+    first_paint = (len(inner.encode()) - len(js_video.encode())) / 1024 / 1024
+    print(f"첫 페인트까지 {first_paint:.2f}MB, 영상은 그 뒤에 붙음")
+    print(f"인라인: 스타일 {len(styles)}개, 스크립트 {len(scripts)}개, "
+          f"에셋 {len(first) + len(videos)}개")
+    for rel in styles + scripts:
+        print(f"    {rel}")
+
+    # 링크 하나로 끝나야 하는 파일이다. 빠뜨린 참조가 있으면 여기서 잡는다.
+    left = external_refs(doc)
+    if left:
+        raise SystemExit("인라인되지 않은 외부 참조가 남았습니다: " + ", ".join(left))
+    print("외부 요청 0건")
 
 
 if __name__ == "__main__":
