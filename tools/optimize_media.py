@@ -21,18 +21,21 @@ PNG_WIDTH = 520      # poster/폴백용
 
 def optimize_videos():
     ffmpeg = shutil.which("ffmpeg")
-    if not ffmpeg:
-        print("ffmpeg 없음 — 영상 최적화 건너뜀")
-        return
     ffprobe = shutil.which("ffprobe")
+    if not ffmpeg or not ffprobe:
+        # ffprobe 없이 진행하면 이미 최적화된 영상을 매 실행마다 재압축해 화질이 깎인다
+        raise SystemExit("ffmpeg와 ffprobe가 모두 필요합니다. 설치 후 다시 실행하세요.")
+
     for src in sorted(VID.glob("doryeong-*.mp4")):
-        if ffprobe:
-            # 이미 목표 폭이면 건너뛴다 — 반복 실행 시 재압축으로 화질이 깎이는 걸 막는다
-            w = subprocess.run([ffprobe, "-v", "error", "-select_streams", "v:0",
-                                "-show_entries", "stream=width", "-of", "csv=p=0", str(src)],
-                               capture_output=True, text=True).stdout.strip()
-            if w.isdigit() and int(w) <= VIDEO_WIDTH:
-                print(f"{src.name}: 이미 {w}px — 건너뜀")
+        info = subprocess.run(
+            [ffprobe, "-v", "error", "-select_streams", "v:0", "-show_entries",
+             "stream=width,codec_name,pix_fmt", "-of", "csv=p=0", str(src)],
+            capture_output=True, text=True).stdout.strip().split(",")
+        if len(info) == 3:
+            codec, w, pix = info[0], info[1], info[2]
+            # 폭·코덱·픽셀포맷이 모두 목표치면 재인코딩할 이유가 없다
+            if w.isdigit() and int(w) <= VIDEO_WIDTH and codec == "h264" and pix == "yuv420p":
+                print(f"{src.name}: 이미 {w}px {codec}/{pix} — 건너뜀")
                 continue
         tmp = src.with_suffix(".tmp.mp4")
         before = src.stat().st_size
@@ -45,6 +48,18 @@ def optimize_videos():
         ], check=True)
         tmp.replace(src)
         print(f"{src.name}: {before // 1024}KB -> {src.stat().st_size // 1024}KB")
+
+
+def make_posters():
+    """각 mp4의 첫 프레임을 poster용 JPEG로 뽑는다. 영상과 프레이밍이 정확히 같아 재생 전후로 그림이 튀지 않는다."""
+    ffmpeg = shutil.which("ffmpeg")
+    if not ffmpeg:
+        return
+    for src in sorted(VID.glob("doryeong-*.mp4")):
+        out = src.with_suffix(".jpg")
+        subprocess.run([ffmpeg, "-v", "error", "-y", "-i", str(src),
+                        "-frames:v", "1", "-q:v", "4", str(out)], check=True)
+        print(f"{out.name}: poster {out.stat().st_size // 1024}KB")
 
 
 def optimize_pngs():
@@ -64,4 +79,5 @@ def optimize_pngs():
 
 if __name__ == "__main__":
     optimize_videos()
+    make_posters()
     optimize_pngs()

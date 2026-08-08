@@ -119,20 +119,29 @@ body {
   font-weight: 700;
 }
 
-/* 캐릭터 미디어 (mp4 컷 / poster 폴백)
-   mp4에는 알파가 없어 먹색 배경이 사각형으로 드러난다.
-   가장자리를 마스크로 흐려 페이지 배경에 녹인다. */
+/* 캐릭터 미디어
+   정지 그림(.dr-still)이 항상 바닥에 깔리고, 영상(.dr-media)이 그 위에 겹친다.
+   mp4에는 알파가 없어 먹색 배경이 사각형으로 드러나므로 가장자리를 마스크로 흐린다.
+   마스크를 지원하지 않는 브라우저에서는 영상을 숨기고 정지 그림만 보여준다. */
+.dr-frame { position: relative; display: block; }
 .dr-media {
   display: block;
-  width: 100%;
-  height: auto;
+  width: 100%; height: auto;
+  aspect-ratio: 480 / 854;             /* poster가 로드되기 전에도 자리를 잡는다 */
   background: transparent;
   -webkit-mask-image: radial-gradient(ellipse 52% 60% at 50% 49%, #000 42%, transparent 92%);
   mask-image: radial-gradient(ellipse 52% 60% at 50% 49%, #000 42%, transparent 92%);
 }
-.dr-hero .dr-media { width: 300px; margin: -18px -30px; }
-.dr-avatar-lg .dr-media { width: 150px; margin: -10px -16px; }
-.dr-loading .dr-media { width: 190px; margin: -12px; }
+/* 마스크가 없는 브라우저에서는 먹색 사각형이 그대로 드러난다 — 투명 PNG로 대체 */
+.dr-still { display: none; width: 100%; height: auto; }
+@supports not ((mask-image: radial-gradient(#000, transparent)) or
+               (-webkit-mask-image: radial-gradient(#000, transparent))) {
+  .dr-media { display: none; }
+  .dr-still { display: block; }
+}
+.dr-hero .dr-frame { width: 300px; margin: -18px -30px; }
+.dr-avatar-lg .dr-frame { width: 150px; margin: -10px -16px; }
+.dr-loading .dr-frame { width: 190px; margin: -12px; }
 
 /* 스크린리더 전용 */
 .sr-only {

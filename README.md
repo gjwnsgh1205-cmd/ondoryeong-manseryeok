@@ -11,8 +11,21 @@
 
 ```bash
 python -m http.server 8777
-# → http://localhost:8777/index.html
 ```
+
+→ http://localhost:8777/index.html
+
+## 배포
+
+저장소 루트를 그대로 서빙하면 생성 원본(`assets/_master`, 약 9MB)과 도구까지 공개된다.
+배포용 번들을 따로 만든다.
+
+```bash
+python tools/build.py
+```
+
+`dist/`에 HTML/CSS/JS와 `assets/web`, `assets/video`만 담긴다 (약 1.5MB).
+정적 호스팅의 루트를 `dist/`로 잡으면 된다.
 
 ## 구조
 
@@ -50,8 +63,15 @@ mp4가 없거나 `prefers-reduced-motion`이면 같은 자리의 PNG(poster)가 
 ### 에셋 재생성
 
 ```bash
-python tools/prep_assets.py      # 마젠타 크로마키 제거 + 트림 + 영상용 프레임 합성
-python tools/optimize_media.py   # mp4 재인코딩(faststart) + PNG 리사이즈 (ffmpeg 필요)
+pip install -r tools/requirements.txt
+```
+
+```bash
+python tools/prep_assets.py      # 마젠타 크로마키 제거 + 트림 + i2v 입력 프레임 합성
+```
+
+```bash
+python tools/optimize_media.py   # mp4 재인코딩(faststart) + poster 추출 + PNG 양자화 (ffmpeg·ffprobe 필요)
 ```
 
 이미지는 codex CLI 내장 `image_gen`(gpt-image-2), 영상은 BBANANA MCP(Seedance 2.0 i2v)로 만들었다.

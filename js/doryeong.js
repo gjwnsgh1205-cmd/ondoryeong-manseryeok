@@ -25,12 +25,18 @@ const Doryeong = (() => {
     const loop = o.loop !== false;
     const label = o.label || '';
     const a11y = label ? `role="img" aria-label="${label}"` : 'aria-hidden="true"';
-    return `<video class="dr-media ${o.cls || ''}" ${a11y}
-      autoplay muted playsinline ${loop ? 'loop' : ''} preload="none"
-      poster="${png}" data-kind="${kind}">
-      <source src="${mp4}" type="video/mp4">
-      <img src="${png}" alt="${label}">
-    </video>`;
+
+    // poster는 영상 첫 프레임이라 재생 전후로 그림이 튀지 않는다.
+    // 마스크를 지원하지 않는 브라우저에서는 CSS가 영상을 숨기고 이 투명 PNG를 대신 보여준다.
+    const poster = `assets/video/doryeong-${kind}.jpg`;
+    const still = `<img class="dr-still" src="${png}" alt="${label}" ${label ? '' : 'aria-hidden="true"'}>`;
+
+    // autoplay를 붙이지 않는다 — 재생은 app.js가 화면 상태에 맞춰 직접 켜고 끈다.
+    const video = `<video class="dr-media" ${a11y}
+      muted playsinline ${loop ? 'loop' : ''} preload="none" poster="${poster}"
+      data-kind="${kind}" data-loop="${loop}"><source src="${mp4}" type="video/mp4"></video>`;
+
+    return `<div class="dr-frame ${o.cls || ''}">${still}${video}</div>`;
   }
 
   /**

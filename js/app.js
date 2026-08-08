@@ -11,8 +11,59 @@
   let revealTimer = null;  // 로딩 연출 타이머 — 중복 제출·되돌아가기 시 취소한다
   let isLoading = false;
 
-  const REDUCED = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const SCROLL = REDUCED ? 'auto' : 'smooth';
+  const motionQuery = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
+  let REDUCED = !!(motionQuery && motionQuery.matches);
+  const scrollBehavior = () => (REDUCED ? 'auto' : 'smooth');
+
+  // ---------- 캐릭터 영상 재생 제어 ----------
+  // 영상에는 autoplay를 걸지 않는다. 화면에 실제로 보이는 컷만 재생하고,
+  // 한 번짜리 컷(reveal·bow)은 화면에 들어올 때 처음부터 튼다.
+  const seen = new WeakSet();
+
+  function playIn(root) {
+    if (!root) return;
+    root.querySelectorAll('video.dr-media').forEach(v => {
+      if (REDUCED) { v.pause(); return; }
+      if (v.dataset.loop === 'false') {
+        if (seen.has(v)) return;   // 일회성 컷은 화면에 들어왔을 때 관찰자가 튼다
+        return;
+      }
+      v.play().catch(() => { /* 자동재생 차단 시 정지 이미지가 남는다 */ });
+    });
+  }
+
+  function pauseIn(root) {
+    if (!root) return;
+    root.querySelectorAll('video.dr-media').forEach(v => v.pause());
+  }
+
+  // 일회성 컷: 뷰포트에 들어온 순간 한 번 재생
+  const onceObserver = ('IntersectionObserver' in window)
+    ? new IntersectionObserver((entries) => {
+        for (const e of entries) {
+          if (!e.isIntersecting || REDUCED) continue;
+          const v = e.target;
+          if (seen.has(v)) continue;
+          seen.add(v);
+          v.currentTime = 0;
+          v.play().catch(() => {});
+          onceObserver.unobserve(v);
+        }
+      }, { threshold: 0.35 })
+    : null;
+
+  function registerOnce(root) {
+    if (!root || !onceObserver) return;
+    root.querySelectorAll('video.dr-media[data-loop="false"]').forEach(v => onceObserver.observe(v));
+  }
+
+  if (motionQuery && motionQuery.addEventListener) {
+    motionQuery.addEventListener('change', (e) => {
+      REDUCED = e.matches;
+      if (REDUCED) pauseIn(document);
+      else playIn(document.querySelector('#result-section.hidden') ? $('#input-section') : $('#result-section'));
+    });
+  }
 
   function setLoading(on) {
     isLoading = on;
@@ -22,6 +73,9 @@
     const input = $('#input-section');
     if (on) input.setAttribute('inert', ''); else input.removeAttribute('inert');
     $('#birth-form').querySelector('.btn-main').disabled = on;
+    // 보이는 컷만 돌린다
+    if (on) { pauseIn(input); playIn(ov); }
+    else { pauseIn(ov); }
   }
 
   function cancelReveal() {
@@ -105,7 +159,9 @@
       $('#input-section').classList.add('hidden');
       $('#result-section').classList.remove('hidden');
       setLoading(false);
-      window.scrollTo({ top: 0, behavior: SCROLL });
+      pauseIn($('#input-section'));
+      registerOnce($('#result-section'));
+      window.scrollTo({ top: 0, behavior: scrollBehavior() });
       $('#result-heading').focus({ preventScroll: true });
     }, REDUCED ? 0 : 1150);
   });
@@ -113,8 +169,10 @@
   $('#btn-again').addEventListener('click', () => {
     cancelReveal();
     $('#result-section').classList.add('hidden');
+    pauseIn($('#result-section'));
     $('#input-section').classList.remove('hidden');
-    window.scrollTo({ top: 0, behavior: SCROLL });
+    playIn($('#input-section'));
+    window.scrollTo({ top: 0, behavior: scrollBehavior() });
     $('#f-year').focus({ preventScroll: true });
   });
 
@@ -311,5 +369,5 @@
   document.querySelectorAll('.dr-bridge').forEach(el => {
     el.textContent = Doryeong.BRIDGES[el.dataset.bridge] || '';
   });
-  if (REDUCED) document.querySelectorAll('video.dr-media').forEach(v => v.pause());
+  playIn($('#input-section')); // 로딩 오버레이 컷은 열릴 때 켠다
 })();
