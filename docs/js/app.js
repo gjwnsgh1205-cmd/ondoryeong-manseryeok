@@ -32,6 +32,17 @@
   const CS = typeof Consult !== 'undefined' ? Consult : null;
   const SIT = typeof Situation !== 'undefined' ? Situation : null;
   const SH = typeof Share !== 'undefined' ? Share : null;
+  const CP = typeof Chapter !== 'undefined' ? Chapter : null;
+
+  /* 긴 글은 "{이름}님은 지금 …" 으로 열린다.
+     지금은 이름을 안 받는다. 빈 값이면 Chapter 가 그 덩어리째 지우고
+     "지금 …" 으로 시작하게 만든다 — "님은 지금" 이 남지 않게.
+     이름을 받기 시작하면 여기만 바꾸면 된다. */
+  const NAME_KEY = 'ondoryeong.name.v1';
+  const readerName = () => {
+    try { return (localStorage.getItem(NAME_KEY) || '').trim().slice(0, 12); }
+    catch (e) { return ''; }
+  };
 
   /* ── 상태 ─────────────────────────────────────────────── */
   let chart = null;      // manseryeok 계산 결과
@@ -341,8 +352,31 @@
   }
 
   /* ── 기질 ─────────────────────────────────────────────── */
+  /* 한 편의 긴 글로 그린다.
+     예전엔 이 자리가 칸 다섯이었다 — 본문 / 이런 식이에요 / 잘하는 것 /
+     자주 걸리는 곳 / 기운의 두께. 정보는 다 있는데 읽히지가 않아서
+     "짧게 짧게라 의미가 없어 보인다" 는 말을 들었다.
+
+     긴 글이 없는 명식은 아직 조각으로 그린다. 40장을 다 채우기 전에도
+     화면이 비지 않아야 하기 때문이다. */
   function renderNature() {
     const t = rp.type, st = rp.strength;
+
+    if (CP && t.chapter) {
+      $('nature').innerHTML = CP.render(t.chapter, {
+        open: opened(),
+        values: { 물상: t.noun, 이름: readerName() },
+        cta: `<button type="button" class="td-open" data-open="1">${
+          SUB_PRICE.toLocaleString()}원으로 마저 읽기</button>`,
+      })
+      // 두께는 긴 글에 안 들어간다. 계산으로 나온 값이라 글과 성격이 다르다.
+      + `<div class="np" style="--npc:var(--gold-ink)">
+          <span class="np-label">기운의 두께 · ${esc(st.label)}</span>
+          <span class="np-text">${esc(st.note)}</span>
+          <span class="np-note">${esc(st.caveat)}</span></div>`;
+      return;
+    }
+
     const parts = [];
     if (t.body) parts.push(`<p class="nature-body">${esc(t.body)}</p>`);
     // 구체적인 장면 하나가 "어떻게 알았지" 하고 멈칫하게 만든다
@@ -358,7 +392,7 @@
         <span class="np-label">자주 걸리는 곳</span>
         <span class="np-text">${esc(t.cautionLine)}</span></div>`);
     }
-    parts.push(`<div class="np" style="--npc:var(--gold)">
+    parts.push(`<div class="np" style="--npc:var(--gold-ink)">
       <span class="np-label">기운의 두께 · ${esc(st.label)}</span>
       <span class="np-text">${esc(st.note)}</span>
       <span class="np-note">${esc(st.caveat)}</span></div>`);
@@ -539,6 +573,20 @@
       ${p.advice ? `<p class="cn-advice">${esc(p.advice)}</p>` : ''}
       ${rp.current.status === 'after' && i === rp.current.idx
         ? `<p class="cn-advice">여기까지가 이 만세력이 세워둔 아홉 마디예요. 그 너머를 걸어오셨네요.</p>` : ''}`;
+
+    /* 이 십 년에 대한 긴 글.
+       사용자가 경쟁사 화면을 보여주며 "이렇게 길게 써 달라" 고 한 자리가 여기다.
+       cutAt 이 1인 이유 — 십 년 이야기는 한 문단만 주고 끊어야 궁금해진다.
+       곡선의 다른 마디를 눌러 봐도 그 마디의 글이 따라온다. */
+    const box = $('daeun-read');
+    if (!box) return;
+    box.innerHTML = (CP && p.chapter) ? CP.render(p.chapter, {
+      open: opened(),
+      // "경술(庚戌)" 꼴. 조사는 한글 쪽 소리로 붙는다 — josa.js 가 괄호를 떼고 본다.
+      values: { 물상: rp.type.noun, 이름: readerName(), 대운간지: `${p.ganji}(${p.han})` },
+      cta: `<button type="button" class="td-open" data-open="1">${
+        SUB_PRICE.toLocaleString()}원으로 마저 읽기</button>`,
+    }) : '';
   }
 
   /* ── 오늘 ─────────────────────────────────────────────────
@@ -648,6 +696,28 @@
     const wd = ['일', '월', '화', '수', '목', '금', '토'][d.getUTCDay()];
     const streak = bumpStreak(t.stamp);
 
+    /* 오늘 화면만 긴 글을 앞세우지 않는다.
+       코덱스와 합의한 자리다 — 매일 여는 화면은 1분 안에 핵심과 행동을 얻어야
+       습관이 된다. 긴 글은 자주 안 바뀌는 기질·대운 쪽에 둔다.
+
+       그렇다고 예전처럼 칸 열 개로 쪼개지도 않는다. 첫 문단 하나를 통으로 펴 두고,
+       나머지는 접어서 더 읽고 싶은 사람만 열게 한다. 짧되 파편은 아니다. */
+    const ch = t.chapter;
+    const todayRead = (CP && ch) ? `
+      ${ch.title ? `<h4 class="td-headline">${CP.bold(ch.title)}</h4>` : ''}
+      <p class="td-why">${CP.bold(CP.fill(ch.paras[0] || '', { 물상: rp.type.noun, 이름: readerName(), 오늘간지: t.ganji + '일' }))}</p>
+      ${ch.paras.length > 1 ? `<details class="td-read">
+        <summary>오늘을 더 읽기 · ${ch.paras.length - 1}문단</summary>
+        <div class="td-read-body">${CP.render({ paras: ch.paras.slice(1), cutAt: 1 }, {
+          open: opened(),
+          values: { 물상: rp.type.noun, 이름: readerName(), 오늘간지: t.ganji + '일' },
+          cta: `<button type="button" class="td-open" id="btn-open-read">${
+            SUB_PRICE.toLocaleString('ko-KR')}원으로 마저 읽기</button>`,
+        })}</div>
+      </details>` : ''}` : `
+      ${t.headline ? `<p class="td-headline">${esc(t.headline)}</p>` : ''}
+      ${t.why ? `<p class="td-why">${esc(t.why)}</p>` : ''}`;
+
     const three = [
       ['일·돈', t.work, 'w'],
       ['사람', t.people, 'p'],
@@ -665,8 +735,7 @@
       </div>
 
       ${scoreBlock()}
-      ${t.headline ? `<p class="td-headline">${esc(t.headline)}</p>` : ''}
-      ${t.why ? `<p class="td-why">${esc(t.why)}</p>` : ''}
+      ${todayRead}
       ${t.air ? `<p class="td-air">${esc(t.air)}</p>` : ''}
 
       ${flowBlock()}
@@ -677,7 +746,7 @@
         ${t.kindTip ? `<p class="td-kindtip">${show(t.kindTip, '오늘의 처방')}</p>` : ''}
       </div>` : ''}
 
-      ${three.length ? `<div class="td-three">${three.map(([k, v, c], i) => `
+      ${!ch && three.length ? `<div class="td-three">${three.map(([k, v, c], i) => `
         <div class="td-one td-one-${c}"><i>${esc(k)}</i><span>${
           i === 0 ? esc(v) : show(v, k + ' 풀이')}</span></div>`).join('')}</div>` : ''}
 
@@ -688,12 +757,12 @@
       </div>` : ''}
 
       <div class="td-acts">
-        ${t.doThis ? `<div class="td-act"><i>해보세요</i><span>${esc(t.doThis)}</span></div>` : ''}
-        ${t.avoid ? `<div class="td-act is-hold"><i>미뤄두세요</i><span>${show(t.avoid, '오늘 미뤄둘 일')}</span></div>` : ''}
+        ${(ch && ch.doThis) || t.doThis ? `<div class="td-act"><i>오늘 해볼 것</i><span>${esc((ch && ch.doThis) || t.doThis)}</span></div>` : ''}
+        ${(ch && ch.avoid) || t.avoid ? `<div class="td-act is-hold"><i>오늘 미뤄둘 것</i><span>${show((ch && ch.avoid) || t.avoid, '오늘 미뤄둘 일')}</span></div>` : ''}
       </div>
 
-      ${t.watchFor ? `<p class="td-watch"><i>걸리기 쉬운 자리</i>${show(t.watchFor, '걸리기 쉬운 자리')}</p>` : ''}
-      ${t.goodWith ? `<p class="td-good"><i>오늘 곁에 두면 좋은 사람</i>${show(t.goodWith, '곁에 두면 좋은 사람')}</p>` : ''}
+      ${!ch && t.watchFor ? `<p class="td-watch"><i>걸리기 쉬운 자리</i>${show(t.watchFor, '걸리기 쉬운 자리')}</p>` : ''}
+      ${!ch && t.goodWith ? `<p class="td-good"><i>오늘 곁에 두면 좋은 사람</i>${show(t.goodWith, '곁에 두면 좋은 사람')}</p>` : ''}
 
       ${opened() ? '' : `<button type="button" class="td-open" id="btn-open-today">
         가려진 곳까지 매일 보기 · 달마다 ${SUB_PRICE.toLocaleString('ko-KR')}원

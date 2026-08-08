@@ -28,6 +28,11 @@ const OUT = path.join(ROOT, 'js', 'content.js');
 const HAN2KOR = { 子: '자', 丑: '축', 寅: '인', 卯: '묘', 辰: '진', 巳: '사',
                   午: '오', 未: '미', 申: '신', 酉: '유', 戌: '술', 亥: '해' };
 
+/* 키로 쓴 필드를 값에서 뺀다. "갑봄" 아래에 stem:'갑', season:'봄' 을 또 두면
+   같은 걸 두 번 들고 다니게 되고, 둘이 어긋났을 때 어느 쪽이 맞는지 알 수 없다. */
+const strip = (obj, keys) => Object.fromEntries(
+  Object.entries(obj).filter(([k]) => !keys.includes(k)));
+
 /* ── 검수 수정 ────────────────────────────────────────────
    [경로, 찾을것(null = 통째 교체), 바꿀것, 사유, optional?]
    사유의 (안전)은 안전검수, (화법)은 "한 번에 이해되는가" 검수에서 나왔다. */
@@ -314,6 +319,42 @@ function main() {
     }
   }
 
+
+  /* ── 긴 글 ─────────────────────────────────────────────
+     조각 카드를 대신하는 장(章). 말투 판을 덮은 뒤에 얹는다 —
+     긴 글은 처음부터 해요체로 썼으니 말투 덮기를 통과시킬 이유가 없고,
+     PATCHES 는 낱개 필드 경로를 쓰므로 여기 닿지 않는다.
+
+     원고는 tools/longform_source.json 에 있다. 없으면 이 단계는 건너뛴다 —
+     구판 낱개 필드가 그대로 살아 있어 화면은 안 빈다. */
+  const LF = path.join(ROOT, 'tools', 'longform_source.json');
+  if (fs.existsSync(LF)) {
+    const lf = JSON.parse(fs.readFileSync(LF, 'utf8'));
+    db.longform = { natures: {}, today: {}, daeun: {} };
+
+    (lf.natures || []).forEach((n) => { db.longform.natures[n.stem + n.season] = strip(n, ['stem', 'season']); });
+    (lf.today || []).forEach((t) => { db.longform.today[t.relation] = strip(t, ['relation']); });
+    (lf.daeun || []).forEach((d) => { db.longform.daeun[d.key] = strip(d, ['key']); });
+
+    const n = Object.keys(db.longform.natures).length;
+    const t = Object.keys(db.longform.today).length;
+    const d = Object.keys(db.longform.daeun).length;
+    console.log(`  긴 글 — 기질 ${n}/40, 오늘 ${t}/10, 대운 ${d}/10`);
+
+    /* 물상 명사를 슬롯 대신 본문에 박아둔 자리가 있으면 잡는다.
+       그러면 나중에 물상 문구를 손볼 때 그 장만 어긋난다. */
+    const NOUNS = Object.values(db.nouns).map((x) => x.noun);
+    let baked = 0;
+    for (const [k, ch] of Object.entries(db.longform.natures)) {
+      const joined = (ch.paras || []).join(' ') + ' ' + (ch.title || '');
+      for (const noun of NOUNS) {
+        // 제 물상이 제 장에 나오는 건 정상이다. 슬롯을 안 쓴 것만 잡는다.
+        if (joined.includes(noun) && !joined.includes('{물상}')) { baked++; break; }
+      }
+      void k;
+    }
+    if (baked) console.warn(`  ! 긴 글 ${baked}장이 {물상} 슬롯 대신 물상을 본문에 박아뒀다`);
+  }
 
   /* ── 검산 ── */
   const problems = [...failed];

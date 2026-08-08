@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="color-scheme" content="dark">
+<meta name="color-scheme" content="light">
+<meta name="theme-color" content="#FFFFFF">
 <meta name="description" content="태어난 여덟 글자를 절기까지 계산해 읽어드립니다. 온도령 만세력.">
 <title>온도령 — 여덟 글자를 읽다</title>
 <!-- 카톡·문자에 링크를 붙였을 때 뜨는 미리보기.
@@ -17,7 +18,7 @@
 <meta property="og:image:width" content="520">
 <meta property="og:image:height" content="1054">
 <meta name="twitter:card" content="summary_large_image">
-<link rel="stylesheet" href="css/style.css?v=c136848e">
+<link rel="stylesheet" href="css/style.css?v=4b6a24ef">
 </head>
 <body>
 
@@ -186,6 +187,8 @@
       <div id="curve"></div>
     </div>
     <div class="curve-now" id="curve-now" aria-live="polite"></div>
+    <!-- 지금 지나는 십 년 — 한 편의 긴 글 -->
+    <div class="daeun-read" id="daeun-read"></div>
   </section>
 
   <!-- 오늘 -->
@@ -327,15 +330,18 @@
 <script src="js/vendor/astronomy.browser.min.js?v=f41139a8"></script>
 <script src="js/vendor/korean-lunar.min.js?v=b3ec17b1"></script>
 <script src="js/manseryeok.js?v=1a7728f6"></script>
-<script src="js/content.js?v=c65ec174"></script>
-<script src="js/report.js?v=8770727e"></script>
+<!-- josa 는 chapter 보다 먼저 와야 한다. 긴 글의 슬롯에 조사를 붙이는 쪽이다. -->
+<script src="js/josa.js?v=60b54171"></script>
+<script src="js/chapter.js?v=1123f5e2"></script>
+<script src="js/content.js?v=7f409c53"></script>
+<script src="js/report.js?v=886a067b"></script>
 <script src="js/counsel.js?v=0393b86d"></script>
-<script src="js/doryeong.js?v=b5bc1963"></script>
-<script src="js/topics.js?v=6d45da56"></script>
+<script src="js/doryeong.js?v=6c78be91"></script>
+<script src="js/topics.js?v=53b4a84c"></script>
 <script src="js/situation.js?v=788ba981"></script>
 <script src="js/share.js?v=25cf8aaf"></script>
-<script src="js/consult.js?v=11df8614"></script>
-<script src="js/sky.js?v=5018935a"></script>
-<script src="js/app.js?v=4cd4872b"></script>
+<script src="js/consult.js?v=4c52676c"></script>
+<script src="js/sky.js?v=9d0a5e59"></script>
+<script src="js/app.js?v=553f8540"></script>
 </body>
 </html>

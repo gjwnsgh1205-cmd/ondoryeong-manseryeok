@@ -70,9 +70,9 @@ const Report = (() => {
       skew: s,
       percentile: pct,
       rare, balanced,
-      line: rare ? `오행이 한쪽으로 쏠린 정도가 상위 ${pct}%에 드는 명식이라네`
-          : balanced ? '오행이 제법 고르게 퍼진 명식이라네'
-          : '오행이 크게 치우치지도, 딱 고르지도 않은 명식이라네',
+      line: rare ? `오행이 한쪽으로 쏠린 정도가 상위 ${pct}%에 드는 명식이에요`
+          : balanced ? '오행이 제법 고르게 퍼진 명식이에요'
+          : '오행이 크게 치우치지도, 딱 고르지도 않은 명식이에요',
       total: TOTAL_CHARTS,
     };
   }
@@ -120,11 +120,11 @@ const Report = (() => {
       label,
       // 0 = 아주 신약, 1 = 아주 신강. 대운 곡선의 기울기를 정한다.
       t: clamp((ratio - R_LO) / (R_HI - R_LO), 0, 1),
-      note: label === '신강' ? '내 기운이 넉넉하니, 덜어내고 쓰는 쪽이 편한 명식이네'
-          : label === '신약' ? '내 기운이 얇으니, 빌려오고 기대는 쪽이 편한 명식이네'
-          : '내 기운이 치우치지 않아, 때에 따라 쓰임이 달라지는 명식이네',
+      note: label === '신강' ? '기운이 넉넉해서, 덜어내고 쓰는 쪽이 편한 명식이에요'
+          : label === '신약' ? '기운이 얇은 편이라, 빌려오고 기대는 쪽이 편한 명식이에요'
+          : '기운이 치우치지 않아서, 때에 따라 쓰임이 달라지는 명식이에요',
       // 변명 대신 방법을 말한다. "다를 수 있다"는 말은 읽는 사람의 신뢰만 깎는다.
-      caveat: '태어난 달의 자리를 셋으로, 태어난 날의 자리를 하나 반으로 놓고 여덟 글자의 무게를 달아 셈했네.',
+      caveat: '태어난 달의 자리를 셋으로, 태어난 날의 자리를 하나 반으로 놓고 여덟 글자의 무게를 달아 계산했어요.',
     };
   }
 
@@ -140,9 +140,16 @@ const Report = (() => {
     const mod = c && c.modifiers && c.modifiers[monthBranch];
     const def = c && c.defs && c.defs[stemK + season];
 
+    /* 긴 글 한 편. 조각 카드를 대신한다.
+       없으면(구판 content.js) 아래 낱개 필드로 그대로 그려진다 — 화면이 비지 않게. */
+    const lf = c && c.longform && c.longform.natures;
+    const chapter = lf ? lf[stemK + season] : null;
+
     return {
       stem: stemK, branch: monthBranch, season,
       name: mod && noun ? `${mod.modifier} ${noun.noun}` : `${stemK}일간`,
+      // 긴 글의 {물상} 슬롯에 들어갈 값. 은유를 글 전체에 이어 붙이는 열쇠다.
+      noun: noun ? noun.noun : '',
       nounGloss: noun ? noun.gloss : '',
       modGloss: mod ? mod.gloss : '',
       headline: def ? def.headline : '',
@@ -150,6 +157,7 @@ const Report = (() => {
       example: def ? def.example : '',
       strengthLine: def ? def.strength : '',
       cautionLine: def ? def.caution : '',
+      chapter,
     };
   }
 
@@ -219,7 +227,7 @@ const Report = (() => {
         stemEl: mp.stemInfo.el,
         group: groupOf(mp.stemSipseong),
         score: score(mp.stemSipseong, mp.branchSipseong),
-        label: '태어난 자리', line: '아직 자네 몫의 운이 오기 전, 태어난 달의 기운 아래서 자란 시절이네',
+        label: '태어난 자리', line: '아직 내 몫의 운이 오기 전, 태어난 달의 기운 아래서 자란 시절이에요',
         advice: '',
       });
     }
@@ -242,6 +250,11 @@ const Report = (() => {
         line: ph.line || '',
         example: ph.example || '',
         advice: ph.advice || '',
+        /* 이 십 년에 대한 긴 글. 사용자가 경쟁사 화면을 보여주며
+           "이렇게 길게 써 달라" 고 한 자리가 바로 여기다.
+           {대운간지} 슬롯에 넣을 값은 아래 ganji 를 그대로 쓴다. */
+        chapter: (c && c.longform && c.longform.daeun
+                  && c.longform.daeun[g + '-' + tone]) || null,
       });
     }
     return pts;
@@ -326,6 +339,13 @@ const Report = (() => {
       kindLine: k.line || '',
       kindTip: k.tip || '',
       special: kind !== '보통',
+
+      /* 오늘의 긴 글.
+         다만 오늘 화면은 일부러 짧게 둔다 — 매일 여는 자리라 1분 안에
+         핵심과 행동이 잡혀야 습관이 된다. 긴 글은 첫 문단만 펴 두고
+         나머지는 접어서, 더 읽고 싶은 사람만 열게 한다.
+         긴 글을 앞세우는 건 자주 안 바뀌는 기질과 대운 쪽이다. */
+      chapter: (c && c.longform && c.longform.today && c.longform.today[rel]) || null,
 
       // 하루가 바뀌면 다시 계산해야 한다 — 캐시 키
       stamp: dayStamp(now),
@@ -522,7 +542,7 @@ const Report = (() => {
 
     return {
       daeun: pt ? { ganji: pt.ganji, han: pt.han, label: pt.label,
-                    from: pt.startAge, to: pt.endAge } : null,
+                    from: pt.startAge, to: pt.endAge, chapter: pt.chapter || null } : null,
       year: { year: yp.year, ganji: yp.stemInfo.kor + yp.branchInfo.kor,
               han: yp.stemInfo.han + yp.branchInfo.han,
               relation: yRel, label: yTxt.label || '', line: yTxt.line || '' },

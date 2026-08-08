@@ -22,12 +22,12 @@ const Consult = (() => {
     '사라지고 싶', '사라지고싶', '끝내고 싶', '끝내고싶', '없어지고 싶',
   ];
   const CRISIS_REPLY =
-    '잠깐 풀이를 멈추겠네.\n\n' +
-    '지금 자네가 하는 말이 마음에 걸리네. 사주는 이런 순간에 도움이 되지 못한다네. ' +
-    '지금 필요한 것은 하늘의 흐름이 아니라 사람일세.\n\n' +
-    '자살예방 상담전화 109 — 24시간, 통화료 없이 연결되네.\n' +
+    '잠깐 풀이를 멈출게요.\n\n' +
+    '지금 하신 말이 마음에 걸려요. 사주는 이런 순간에 도움이 되지 못해요. ' +
+    '지금 필요한 것은 하늘의 흐름이 아니라 사람입니다.\n\n' +
+    '자살예방 상담전화 109 — 24시간, 통화료 없이 연결돼요.\n' +
     '정신건강 위기상담 1577-0199\n\n' +
-    '지금 당장 누군가와 이야기하시게. 나는 여기 있겠네. 다음에 마음이 좀 가벼워지면 그때 다시 오시게.';
+    '지금 당장 누군가와 이야기하세요. 저는 여기 있을게요. 다음에 마음이 좀 가벼워지면 그때 다시 오세요.';
 
   function isCrisis(text) {
     const t = String(text).replace(/\s/g, '');
@@ -71,9 +71,9 @@ const Consult = (() => {
     const t = s.topic;
     const intro = Doryeong.resultIntro(s.chart);
     const said = s.situation
-      ? `자네가 들려준 이야기, 잘 들었네.\n\n`
+      ? `들려주신 이야기, 잘 들었어요.\n\n`
       : '';
-    return `${intro}\n\n${said}${t ? t.probe : '어떤 마음으로 오셨는가? 편하게 이야기해 주시게.'}`;
+    return `${intro}\n\n${said}${t ? t.probe : '어떤 마음으로 오셨어요? 편하게 이야기해 주세요.'}`;
   }
 
   /** 결제 전에 보여주는 맛보기 — 엔진이 실제로 일하고 있음을 보여준다 */
@@ -97,8 +97,8 @@ const Consult = (() => {
 
     if (remaining(s) <= 0) {
       const msg = s.paid
-        ? '오늘 나눌 이야기는 여기까지일세. 더 묻고 싶다면 이용권을 한 장 더 쓰시게.'
-        : '여기까지가 내가 그냥 봐줄 수 있는 만큼일세. 더 깊이 보려면 이용권이 필요하다네.';
+        ? '오늘 나눌 이야기는 여기까지예요. 더 묻고 싶다면 이용권을 한 장 더 써보세요.'
+        : '여기까지가 그냥 봐드릴 수 있는 만큼이에요. 더 깊이 보려면 이용권이 필요해요.';
       s.turns.push({ role: 'doryeong', text: msg });
       return { text: msg, needsPass: true };
     }
@@ -165,15 +165,15 @@ const Consult = (() => {
     }[season];
 
     return [
-      `${s.topic ? s.topic.label + ' 이야기로 이어가겠네.' : ''}`,
-      d ? `자네는 지금 ${d.stemInfo.kor}${d.branchInfo.kor} 대운, ${seasonWord}을 지나고 있네.` : '',
+      `${s.topic ? s.topic.label + ' 이야기로 이어갈게요.' : ''}`,
+      d ? `지금 ${d.stemInfo.kor}${d.branchInfo.kor} 대운, ${seasonWord}을 지나고 있어요.` : '',
       `일간 ${r.dayStem.kor}${r.dayStem.han}에 ${Manse.ELEMENTS[r.el.indexOf(Math.max(...r.el))].kor} 기운이 두터운 명식이라, ${
-        s.topic?.id === 'money' ? '돈은 한 번에 크게 오기보다 흐름을 타고 들어오는 편일세.'
-        : s.topic?.id === 'love' || s.topic?.id === 'reunion' ? '마음을 먼저 여는 쪽이 자네일 때가 많다네.'
-        : s.topic?.id === 'career' ? '자리보다 사람 때문에 흔들리는 일이 잦은 편일세.'
-        : '결정 앞에서 오래 재는 편일세.'}`,
+        s.topic?.id === 'money' ? '돈은 한 번에 크게 오기보다 흐름을 타고 들어오는 편이에요.'
+        : s.topic?.id === 'love' || s.topic?.id === 'reunion' ? '마음을 먼저 여는 쪽일 때가 많아요.'
+        : s.topic?.id === 'career' ? '자리보다 사람 때문에 흔들리는 일이 잦은 편이에요.'
+        : '결정 앞에서 오래 재는 편이에요.'}`,
       '',
-      '다만 여기까지는 명식의 큰 줄기만 읽은 것일세. 자네가 들려준 사정에 맞춰 제대로 짚으려면 더 깊이 들어가야 하네.',
+      '다만 여기까지는 명식의 큰 줄기만 읽은 거예요. 들려주신 사정에 맞춰 제대로 짚으려면 더 깊이 들어가야 해요.',
     ].filter(Boolean).join('\n');
   }
 
