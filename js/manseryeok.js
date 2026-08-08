@@ -395,6 +395,17 @@ const Manse = (() => {
     return { y: t.y, m: t.m, d: t.d };
   }
 
+  // 올해의 세운 간지 (입춘 기준 — 1월생은 아직 전년도 세운이다)
+  function currentYearPillar(now = new Date()) {
+    const kst = new Date(now.getTime() + (9 * 60 + now.getTimezoneOffset()) * 60000);
+    const y = kst.getFullYear();
+    const nowJD = now.getTime() / 86400000 + 2440587.5;
+    const sajuYear = nowJD >= yearTerms(y)[0].jd ? y : y - 1;
+    const s = ((sajuYear - 4) % 10 + 10) % 10;
+    const b = ((sajuYear - 4) % 12 + 12) % 12;
+    return { year: sajuYear, stem: s, branch: b, stemInfo: STEMS[s], branchInfo: BRANCHES[b] };
+  }
+
   // 오늘의 일진 (KST, 출생 일주와 동일하게 23시부터 다음 날 일진으로 취급)
   function todayIljin(now = new Date()) {
     const kst = new Date(now.getTime() + (9 * 60 + now.getTimezoneOffset()) * 60000);
@@ -404,7 +415,7 @@ const Manse = (() => {
     return { stem: idx % 10, branch: idx % 12, stemInfo: STEMS[idx % 10], branchInfo: BRANCHES[idx % 12] };
   }
 
-  return { STEMS, BRANCHES, ELEMENTS, SIPSEONG_GROUP, compute, sipseong, todayIljin, yearTerms, jdn, setAstro, timeStatus: kstTimeStatus };
+  return { STEMS, BRANCHES, ELEMENTS, SIPSEONG_GROUP, compute, sipseong, todayIljin, currentYearPillar, yearTerms, jdn, setAstro, timeStatus: kstTimeStatus };
 })();
 
 if (typeof module !== 'undefined') module.exports = Manse;

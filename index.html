@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="dark">
 <title>온도령 — 만세력 마음 상담소</title>
 <link rel="stylesheet" href="css/style.css">
 </head>
@@ -20,16 +21,38 @@
 </header>
 
 <main>
-  <!-- ========== 입력 ========== -->
-  <section id="input-section">
+
+  <!-- ══════════ 1단계 · 고민 ══════════ -->
+  <section id="step-concern" class="step">
     <div class="dr-scene">
       <div id="dr-hero" class="dr-hero"></div>
       <div class="bubble bubble-hero" id="dr-greet"></div>
     </div>
 
-    <div class="card input-card">
-      <h2 class="section-title">생시를 알려주시게</h2>
-      <p class="section-sub">양력 생년월일과 태어난 시각이면 충분하다네.</p>
+    <div class="card">
+      <h2 class="section-title">무엇이 궁금해서 오셨는가</h2>
+      <p class="section-sub">보고 싶은 것을 고르거나, 지금 마음에 걸리는 일을 그냥 이야기해 주시게.</p>
+
+      <div id="topic-grid" class="topic-grid"></div>
+
+      <div class="own-story">
+        <label for="f-situation" class="field-label">직접 이야기하기</label>
+        <textarea id="f-situation" rows="3"
+          placeholder="예) 3년 사귄 사람과 두 달 전에 헤어졌어요. 아직 정리가 안 됐는데 연락해도 될지 모르겠어요."></textarea>
+        <p class="hint">골라둔 주제가 있으면 함께 담아 전하겠네. 없이 이야기만 해도 좋다네.</p>
+      </div>
+
+      <button id="btn-to-birth" class="btn-main" disabled>이야기 들려주고 다음으로</button>
+    </div>
+  </section>
+
+  <!-- ══════════ 2단계 · 생시 ══════════ -->
+  <section id="step-birth" class="step hidden">
+    <div class="chosen-bar" id="chosen-bar"></div>
+
+    <div class="card">
+      <h2 class="section-title">태어난 날과 시각을 알려주시게</h2>
+      <p class="section-sub">이걸 알아야 자네의 명식을 세울 수 있다네. 계산은 이 브라우저 안에서만 일어나네.</p>
 
       <form id="birth-form" autocomplete="off">
         <div class="form-grid">
@@ -56,12 +79,8 @@
         </div>
 
         <div class="form-row">
-          <label class="check">
-            <input type="checkbox" id="f-unknown-time"> 태어난 시각을 몰라요
-          </label>
-          <label class="check">
-            <input type="checkbox" id="f-true-solar" checked> 경도 보정 (동경 127.5°, −30분)
-          </label>
+          <label class="check"><input type="checkbox" id="f-unknown-time"> 태어난 시각을 몰라요</label>
+          <label class="check"><input type="checkbox" id="f-true-solar" checked> 경도 보정 (동경 127.5°, −30분)</label>
         </div>
 
         <div class="form-row gender-row">
@@ -72,13 +91,35 @@
           </div>
         </div>
 
-        <button type="submit" class="btn-main">도령에게 풀이 청하기</button>
+        <!-- 궁합·재회처럼 상대가 필요한 주제일 때만 열린다 -->
+        <fieldset id="partner-box" class="partner-box hidden">
+          <legend>상대의 생년월일 <span id="partner-optional" class="legend-note"></span></legend>
+          <div class="form-grid form-grid-3">
+            <div class="field">
+              <label for="p-year">해</label>
+              <input type="number" id="p-year" min="1900" max="2050" placeholder="1991">
+            </div>
+            <div class="field">
+              <label for="p-month">월</label>
+              <input type="number" id="p-month" min="1" max="12" placeholder="3">
+            </div>
+            <div class="field">
+              <label for="p-day">일</label>
+              <input type="number" id="p-day" min="1" max="31" placeholder="8">
+            </div>
+          </div>
+          <p class="hint">시각까지는 몰라도 괜찮다네. 아는 만큼만 적으시게.</p>
+        </fieldset>
+
+        <button type="submit" class="btn-main">도령에게 상담 청하기</button>
         <p class="form-note">음력 생일만 아신다면 양력으로 변환해 입력해 주세요. 1954–1961년 출생(표준시 변경), 1948–60·1987–88년 서머타임은 자동 보정됩니다.</p>
       </form>
+
+      <button id="btn-back-concern" class="btn-link">← 고민 다시 고르기</button>
     </div>
   </section>
 
-  <!-- ========== 로딩 연출 ========== -->
+  <!-- ══════════ 로딩 ══════════ -->
   <div id="loading-overlay" class="loading-overlay hidden" aria-hidden="true"
        role="status" aria-live="polite" aria-atomic="true">
     <div class="loading-box">
@@ -88,75 +129,47 @@
     </div>
   </div>
 
-  <!-- ========== 결과 ========== -->
-  <div id="result-section" class="hidden">
+  <!-- ══════════ 3단계 · 상담 ══════════ -->
+  <section id="step-consult" class="step hidden">
+    <h2 id="consult-heading" class="sr-only" tabindex="-1">온도령과의 상담</h2>
 
-    <!-- 도령의 풀이 도입 + 오늘의 한 마디 -->
-    <div class="dr-scene dr-scene-result">
-      <h2 id="result-heading" class="sr-only" tabindex="-1">온도령의 사주 풀이 결과</h2>
-      <div id="dr-result-avatar" class="dr-avatar-lg"></div>
-      <div class="bubble-stack">
-        <div class="bubble" id="dr-intro"></div>
-        <div class="bubble bubble-today" id="dr-today"></div>
+    <!-- 명식 요약 (접힘) -->
+    <details class="chart-fold" id="chart-fold">
+      <summary>
+        <span class="fold-label">자네의 명식</span>
+        <span class="fold-brief" id="chart-brief"></span>
+      </summary>
+      <div class="fold-body">
+        <div id="pillar-board" class="pillar-board"></div>
+        <p class="board-note" id="board-note"></p>
+        <div id="element-chart" class="element-chart"></div>
+        <div id="daeun-timeline" class="daeun-timeline"></div>
       </div>
+    </details>
+
+    <!-- 대화 -->
+    <div class="chat" id="chat"></div>
+
+    <!-- 이용권 안내 -->
+    <div id="pass-box" class="pass-box hidden">
+      <h3>더 깊이 보려면</h3>
+      <p id="pass-copy">여기까지는 명식의 큰 줄기라네. 자네 사정에 맞춰 제대로 짚으려면 한 걸음 더 들어가야 하지.</p>
+      <button id="btn-pass" class="btn-main btn-pass">상담권으로 이어서 묻기 · 4,900원</button>
+      <p class="hint" id="pass-note">상담권 한 장으로 5번 더 물을 수 있다네. 결제 기능은 아직 준비 중이라, 지금은 눌러도 그냥 열리네.</p>
     </div>
 
-    <!-- 명식 -->
-    <section class="card">
-      <p class="dr-bridge" data-bridge="pillars"></p>
-      <h2 class="section-title">사주 명식 <span class="title-sub" id="chart-birth-info"></span></h2>
-      <div id="pillar-board" class="pillar-board"></div>
-      <p class="board-note" id="board-note"></p>
-    </section>
-
-    <!-- 오행 밸런스 -->
-    <section class="card">
-      <p class="dr-bridge" data-bridge="elements"></p>
-      <h2 class="section-title">오행의 흐름</h2>
-      <p class="section-sub">마음 에너지가 어느 계절에 몰려 있는지 보여줍니다. (천간 1 · 지지 1의 간이 가중치를 쓴 참고용 분포로, 학파에 따라 셈법이 다를 수 있어요)</p>
-      <div id="element-chart" class="element-chart"></div>
-      <div id="element-comment" class="element-comment"></div>
-    </section>
-
-    <!-- 일간 심리 프로필 -->
-    <section class="card">
-      <p class="dr-bridge" data-bridge="daymaster"></p>
-      <h2 class="section-title">나의 중심 <span class="title-sub" id="dm-ganji"></span></h2>
-      <div id="daymaster-profile"></div>
-    </section>
-
-    <!-- 생애주기 대운 -->
-    <section class="card">
-      <p class="dr-bridge" data-bridge="daeun"></p>
-      <h2 class="section-title">생애의 계절 <span class="title-sub">대운 흐름</span></h2>
-      <p class="section-sub">10년마다 바뀌는 삶의 계절입니다. 지금 어떤 계절을 지나고 있는지 살펴보세요.</p>
-      <div id="daeun-timeline" class="daeun-timeline"></div>
-      <div id="daeun-counsel" class="daeun-counsel"></div>
-    </section>
-
-    <!-- 고민별 상담 -->
-    <section class="card">
-      <p class="dr-bridge" data-bridge="concerns"></p>
-      <h2 class="section-title">주제별 상담</h2>
-      <div class="tabs" id="concern-tabs">
-        <button data-tab="mind" class="tab active">마음 · 감정</button>
-        <button data-tab="relation" class="tab">관계 · 사람</button>
-        <button data-tab="work" class="tab">일 · 진로</button>
-        <button data-tab="body" class="tab">몸 · 활력</button>
-      </div>
-      <div id="concern-body" class="concern-body"></div>
-    </section>
-
-    <!-- 도령의 맺음말 -->
-    <div class="dr-scene dr-scene-close">
-      <div id="dr-close-avatar" class="dr-avatar-lg"></div>
-      <div class="bubble" id="dr-closing"></div>
-    </div>
+    <!-- 입력 -->
+    <form id="ask-form" class="ask-bar">
+      <textarea id="f-ask" rows="1" placeholder="도령에게 물어보시게…"></textarea>
+      <button type="submit" id="btn-ask" class="btn-ask" aria-label="보내기">보내기</button>
+    </form>
+    <p class="turns-left" id="turns-left"></p>
 
     <div class="actions">
-      <button id="btn-again" class="btn-ghost">다른 명식 보기</button>
+      <button id="btn-again" class="btn-ghost">처음부터 다시</button>
     </div>
-  </div>
+  </section>
+
 </main>
 
 <footer class="site-footer">
@@ -168,6 +181,8 @@
 <script src="js/manseryeok.js"></script>
 <script src="js/counsel.js"></script>
 <script src="js/doryeong.js"></script>
+<script src="js/topics.js"></script>
+<script src="js/consult.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>

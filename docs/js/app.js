@@ -1,414 +1,387 @@
 /* ============================================================
- * 앱 로직 (app.js) — 입력 → 명식 계산 → 상담 렌더링
+ * 앱 흐름 (app.js)
+ *
+ * 고민 → 생시 → 상담. 세 화면을 오가는 것이 전부다.
+ * 계산은 manseryeok.js, 주제는 topics.js, 대화 규칙은 consult.js가 쥔다.
+ * 여기서는 화면 전환과 그리기만 한다.
  * ============================================================ */
 
 (() => {
-  const $ = (sel) => document.querySelector(sel);
+  const $ = (s) => document.querySelector(s);
+  const $$ = (s) => Array.from(document.querySelectorAll(s));
   const E = Manse.ELEMENTS;
   const EL_COLORS = ['var(--el-wood)', 'var(--el-fire)', 'var(--el-earth)', 'var(--el-metal)', 'var(--el-water)'];
-
-  let lastResult = null;   // { chart, counsel, age, ageMonths }
-  let revealTimer = null;  // 로딩 연출 타이머 — 중복 제출·되돌아가기 시 취소한다
-  let isLoading = false;
+  const esc = (s) => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
   const motionQuery = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
   let REDUCED = !!(motionQuery && motionQuery.matches);
   const scrollBehavior = () => (REDUCED ? 'auto' : 'smooth');
 
-  // ---------- 캐릭터 영상 재생 제어 ----------
-  // 영상에는 autoplay를 걸지 않는다. 지금 화면에 보이는 컷만 재생한다.
-  // 반복 컷(idle·reading)은 영역이 열릴 때 돌고, 일회성 컷(reveal·bow)은
-  // 뷰포트에 들어온 순간 한 번 돈다.
-  const ONCE_RATIO = 0.35;         // 이 비율 이상 보여야 일회성 컷을 튼다
-  const started = new WeakSet();   // 재생을 시작한 일회성 컷
-  const completed = new WeakSet(); // 끝까지 재생된 일회성 컷 (다시 틀지 않는다)
-  const inView = new WeakSet();    // 지금 충분히 보이는 일회성 컷
+  // 화면 상태
+  let selectedTopic = null;
+  let chart = null, ageMonths = 0, session = null;
+  let busy = false, revealTimer = null;
 
-  // 지금 사용자에게 보이는 영역. 로딩 오버레이가 최우선이다.
+  // ---------- 캐릭터 영상 ----------
+  const started = new WeakSet(), completed = new WeakSet(), inView = new WeakSet();
+  const ONCE_RATIO = 0.35;
+
   function activeSection() {
-    if (isLoading) return $('#loading-overlay');
-    return $('#result-section').classList.contains('hidden') ? $('#input-section') : $('#result-section');
+    if (!$('#loading-overlay').classList.contains('hidden')) return $('#loading-overlay');
+    return $$('.step').find(s => !s.classList.contains('hidden')) || document.body;
   }
-
-  function playVideo(v) {
-    if (REDUCED) return;
-    v.play().catch(() => { /* 자동재생 차단 시 poster가 남는다 */ });
-  }
-
+  const playVideo = (v) => { if (!REDUCED) v.play().catch(() => {}); };
   function playIn(root) {
     if (!root || REDUCED) return;
     root.querySelectorAll('video.dr-media').forEach(v => {
       if (v.dataset.loop === 'false') {
-        // 일회성 컷은 충분히 보일 때만. 처음이면 0부터, 중간에 멈춘 것은 이어서, 끝난 것은 그대로 둔다.
         if (!inView.has(v) || completed.has(v)) return;
         if (!started.has(v)) { started.add(v); v.currentTime = 0; }
-        playVideo(v);
-        return;
       }
       playVideo(v);
     });
   }
-
   function pauseIn(root) {
-    if (!root) return;
-    root.querySelectorAll('video.dr-media').forEach(v => v.pause());
+    if (root) root.querySelectorAll('video.dr-media').forEach(v => v.pause());
   }
-
   const onceObserver = ('IntersectionObserver' in window)
     ? new IntersectionObserver((entries) => {
         for (const e of entries) {
           const v = e.target;
-          // isIntersecting만 보면 몇 픽셀만 걸쳐도 통과한다. 실제 비율로 판정한다.
-          if (!e.isIntersecting || e.intersectionRatio < ONCE_RATIO) {
-            inView.delete(v);
-            v.pause();                     // 화면 밖에서 계속 돌지 않게
-            continue;
-          }
+          if (!e.isIntersecting || e.intersectionRatio < ONCE_RATIO) { inView.delete(v); v.pause(); continue; }
           inView.add(v);
-          if (REDUCED || completed.has(v)) continue;  // 감속 해제 시 playIn이 집어간다
+          if (REDUCED || completed.has(v)) continue;
           if (!started.has(v)) { started.add(v); v.currentTime = 0; }
           playVideo(v);
         }
       }, { threshold: [0, ONCE_RATIO] })
     : null;
-
-  // 이전 결과의 일회성 컷 관찰을 끊는다 — 결과를 다시 그릴 때 DOM이 통째로 교체되므로
-  // 해제하지 않으면 분리된 video 요소가 관찰 목록에 쌓인다.
   let observedOnce = [];
   function registerOnce(root) {
     if (!onceObserver) return;
+    observedOnce.forEach(v => { onceObserver.unobserve(v); inView.delete(v); started.delete(v); completed.delete(v); });
+    observedOnce = root ? Array.from(root.querySelectorAll('video.dr-media[data-loop="false"]')) : [];
     observedOnce.forEach(v => {
-      onceObserver.unobserve(v);
-      inView.delete(v); started.delete(v); completed.delete(v);
-    });
-    observedOnce = [];
-    if (!root) return;
-    observedOnce = Array.from(root.querySelectorAll('video.dr-media[data-loop="false"]'));
-    observedOnce.forEach(v => {
-      // 끝까지 재생된 컷은 완료로 잠그고 관찰에서 뺀다. 다시 스크롤해도 되감기지 않는다.
-      v.addEventListener('ended', () => {
-        completed.add(v);
-        onceObserver.unobserve(v);
-      }, { once: true });
+      v.addEventListener('ended', () => { completed.add(v); onceObserver.unobserve(v); }, { once: true });
       onceObserver.observe(v);
     });
   }
-
   if (motionQuery && motionQuery.addEventListener) {
     motionQuery.addEventListener('change', (e) => {
       REDUCED = e.matches;
-      if (REDUCED) pauseIn(document);
-      else playIn(activeSection());
+      if (REDUCED) pauseIn(document); else playIn(activeSection());
     });
   }
 
+  // ---------- 화면 전환 ----------
+  function show(id) {
+    $$('.step').forEach(s => {
+      const on = s.id === id;
+      s.classList.toggle('hidden', !on);
+      if (!on) pauseIn(s);
+    });
+    const cur = $('#' + id);
+    playIn(cur);
+    window.scrollTo({ top: 0, behavior: scrollBehavior() });
+    return cur;
+  }
+
   function setLoading(on) {
-    isLoading = on;
     const ov = $('#loading-overlay');
     ov.classList.toggle('hidden', !on);
     ov.setAttribute('aria-hidden', on ? 'false' : 'true');
-    const input = $('#input-section');
-    if (on) input.setAttribute('inert', ''); else input.removeAttribute('inert');
-    $('#birth-form').querySelector('.btn-main').disabled = on;
-    // 보이는 컷만 돌린다
-    if (on) { pauseIn(input); playIn(ov); }
-    else { pauseIn(ov); }
+    $$('.step').forEach(s => on ? s.setAttribute('inert', '') : s.removeAttribute('inert'));
+    if (on) playIn(ov); else pauseIn(ov);
   }
 
-  function cancelReveal() {
-    if (revealTimer) { clearTimeout(revealTimer); revealTimer = null; }
-    setLoading(false);
+  // ---------- 1단계 · 고민 ----------
+  function renderTopics() {
+    const grid = $('#topic-grid');
+    grid.innerHTML = Topics.groups().map(g => `
+      <div class="topic-group">
+        <h3 class="topic-group-title">${esc(g)}</h3>
+        <div class="topic-row">
+          ${Topics.LIST.filter(t => t.group === g).map(t => `
+            <button type="button" class="topic-card" data-topic="${t.id}">
+              <span class="topic-label">${esc(t.label)}</span>
+              <span class="topic-banner">${esc(t.banner)}</span>
+            </button>`).join('')}
+        </div>
+      </div>`).join('');
+
+    grid.querySelectorAll('.topic-card').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const same = selectedTopic === btn.dataset.topic;
+        grid.querySelectorAll('.topic-card').forEach(b => b.classList.remove('on'));
+        selectedTopic = same ? null : btn.dataset.topic;
+        if (!same) btn.classList.add('on');
+        syncConcern();
+      });
+    });
   }
 
-  // ---------- 유틸 ----------
-  function koreanAge(y, m, d) {
-    // 만 나이
-    const now = new Date();
-    let age = now.getFullYear() - y;
-    const bd = new Date(now.getFullYear(), m - 1, d);
-    if (now < bd) age -= 1;
-    return age;
+  function syncConcern() {
+    const hasStory = $('#f-situation').value.trim().length > 0;
+    $('#btn-to-birth').disabled = !(selectedTopic || hasStory);
   }
-  function ageInMonths(y, m, d) {
-    // 만 나이 총개월 (대운 구간 판정용)
-    const now = new Date();
-    let months = (now.getFullYear() - y) * 12 + (now.getMonth() + 1 - m);
-    if (now.getDate() < d) months -= 1;
-    return Math.max(0, months);
-  }
-  const esc = (s) => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
-  // ---------- 폼 ----------
-  const form = $('#birth-form');
+  $('#f-situation').addEventListener('input', syncConcern);
+
+  $('#btn-to-birth').addEventListener('click', () => {
+    const t = selectedTopic ? Topics.byId(selectedTopic) : null;
+    const story = $('#f-situation').value.trim();
+    $('#chosen-bar').innerHTML = `
+      ${t ? `<span class="chip">${esc(t.label)}</span>` : ''}
+      ${story ? `<span class="chosen-story">“${esc(story.length > 70 ? story.slice(0, 70) + '…' : story)}”</span>` : ''}`;
+
+    const box = $('#partner-box');
+    if (t && t.needsPartner) {
+      box.classList.remove('hidden');
+      $('#partner-optional').textContent = t.partnerOptional ? '(몰라도 괜찮네)' : '(필요하다네)';
+    } else {
+      box.classList.add('hidden');
+    }
+    show('step-birth');
+    $('#f-year').focus({ preventScroll: true });
+  });
+
+  $('#btn-back-concern').addEventListener('click', () => show('step-concern'));
+
+  // ---------- 2단계 · 생시 ----------
   const unknownCk = $('#f-unknown-time');
   unknownCk.addEventListener('change', () => {
     const dis = unknownCk.checked;
-    $('#f-hour').disabled = dis;
-    $('#f-minute').disabled = dis;
+    $('#f-hour').disabled = dis; $('#f-minute').disabled = dis;
     if (dis) { $('#f-hour').value = ''; $('#f-minute').value = ''; }
   });
 
-  form.addEventListener('submit', (e) => {
+  function koreanAgeMonths(y, m, d) {
+    const now = new Date();
+    let mo = (now.getFullYear() - y) * 12 + (now.getMonth() + 1 - m);
+    if (now.getDate() < d) mo -= 1;
+    return Math.max(0, mo);
+  }
+
+  function readBirth(prefix) {
+    const v = (id) => $(`#${prefix}${id}`).value;
+    return { y: +v('year'), m: +v('month'), d: +v('day') };
+  }
+
+  $('#birth-form').addEventListener('submit', (e) => {
     e.preventDefault();
-    if (isLoading) return; // 연출 중 재제출(엔터 연타) 차단
-    const year = +$('#f-year').value;
-    const month = +$('#f-month').value;
-    const day = +$('#f-day').value;
+    if (busy) return;
+
+    const year = +$('#f-year').value, month = +$('#f-month').value, day = +$('#f-day').value;
     const unknownTime = unknownCk.checked;
     const hour = unknownTime ? 12 : +($('#f-hour').value || 0);
     const minute = unknownTime ? 0 : +($('#f-minute').value || 0);
     const gender = document.querySelector('input[name=gender]:checked').value;
     const useTrueSolar = $('#f-true-solar').checked;
 
-    // 날짜 유효성
     const dt = new Date(year, month - 1, day);
     if (dt.getFullYear() !== year || dt.getMonth() !== month - 1 || dt.getDate() !== day) {
-      alert('존재하지 않는 날짜예요. 다시 확인해 주세요.');
-      return;
+      return alert('존재하지 않는 날짜예요. 다시 확인해 주세요.');
     }
     const birthDT = unknownTime ? dt : new Date(year, month - 1, day, hour, minute);
-    if (birthDT > new Date()) {
-      alert('미래의 날짜·시각은 풀이할 수 없어요. 태어난 날짜를 확인해 주세요.');
-      return;
-    }
+    if (birthDT > new Date()) return alert('미래의 날짜·시각은 풀이할 수 없어요.');
     if (!unknownTime && ($('#f-hour').value === '' || $('#f-minute').value === '')) {
-      alert('태어난 시각을 입력하거나 "시각을 몰라요"를 선택해 주세요.');
-      return;
+      return alert('태어난 시각을 입력하거나 "시각을 몰라요"를 선택해 주세요.');
     }
 
-    let chart;
+    let partnerChart = null;
+    const t = selectedTopic ? Topics.byId(selectedTopic) : null;
+    if (t && t.needsPartner) {
+      const p = readBirth('p-');
+      if (p.y && p.m && p.d) {
+        try {
+          partnerChart = Manse.compute({ year: p.y, month: p.m, day: p.d, gender: gender === 'M' ? 'F' : 'M', unknownTime: true, useTrueSolar });
+        } catch (err) { return alert('상대 생년월일: ' + (err.message || '확인해 주세요.')); }
+      } else if (!t.partnerOptional) {
+        return alert('이 주제는 상대의 생년월일이 필요하다네.');
+      }
+    }
+
     try {
       chart = Manse.compute({ year, month, day, hour, minute, gender, unknownTime, useTrueSolar });
-    } catch (err) {
-      alert(err.message || '계산 중 문제가 생겼어요. 입력을 확인해 주세요.');
-      return;
-    }
-    const age = koreanAge(year, month, day);
-    const ageMonths = ageInMonths(year, month, day);
-    const counsel = Counsel.concernCards(chart, age, ageMonths);
-    lastResult = { chart, counsel, age, ageMonths };
+    } catch (err) { return alert(err.message || '계산 중 문제가 생겼어요.'); }
 
-    // 도령이 만세력을 넘기는 연출 후 결과 공개
+    ageMonths = koreanAgeMonths(year, month, day);
+    session = Consult.start({
+      topic: selectedTopic, chart, ageMonths,
+      situation: $('#f-situation').value.trim(), partnerChart,
+    });
+
+    busy = true;
     setLoading(true);
     revealTimer = setTimeout(() => {
       revealTimer = null;
-      renderAll(chart, counsel, age, ageMonths);
-      $('#input-section').classList.add('hidden');
-      $('#result-section').classList.remove('hidden');
+      openConsult();
       setLoading(false);
-      pauseIn($('#input-section'));
-      registerOnce($('#result-section'));
-      window.scrollTo({ top: 0, behavior: scrollBehavior() });
-      $('#result-heading').focus({ preventScroll: true });
+      busy = false;
     }, REDUCED ? 0 : 1150);
   });
 
-  $('#btn-again').addEventListener('click', () => {
-    cancelReveal();
-    $('#result-section').classList.add('hidden');
-    pauseIn($('#result-section'));
-    registerOnce(null);            // 아직 못 본 맺음말 컷의 관찰을 끊는다
-    $('#input-section').classList.remove('hidden');
-    playIn($('#input-section'));
-    window.scrollTo({ top: 0, behavior: scrollBehavior() });
-    $('#f-year').focus({ preventScroll: true });
+  // ---------- 3단계 · 상담 ----------
+  function openConsult() {
+    renderChartFold();
+    $('#chat').innerHTML = '';
+    registerOnce(null);
+
+    say('doryeong', Consult.opening(session));
+    const pv = Consult.freePreview(session);
+    if (pv) say('doryeong', pv, { soft: true });
+
+    syncTurns();
+    show('step-consult');
+    $('#consult-heading').focus({ preventScroll: true });
+    $('#f-ask').focus({ preventScroll: true });
+  }
+
+  function say(role, text, opt = {}) {
+    const chat = $('#chat');
+    const el = document.createElement('div');
+    el.className = `msg msg-${role}${opt.soft ? ' msg-soft' : ''}${opt.crisis ? ' msg-crisis' : ''}`;
+    el.innerHTML = role === 'doryeong'
+      ? `<img class="msg-avatar" src="assets/web/doryeong-idle.png" alt="" aria-hidden="true">
+         <div class="msg-body"><span class="msg-who">온도령</span>${esc(text)}</div>`
+      : `<div class="msg-body">${esc(text)}</div>`;
+    chat.appendChild(el);
+    el.scrollIntoView({ block: 'nearest', behavior: scrollBehavior() });
+    return el;
+  }
+
+  function thinking() {
+    const el = say('doryeong', '');
+    el.querySelector('.msg-body').innerHTML =
+      `<span class="msg-who">온도령</span><span class="typing"><i></i><i></i><i></i></span>`;
+    return el;
+  }
+
+  function syncTurns() {
+    const left = Consult.remaining(session);
+    const note = session.endedByCrisis ? ''
+      : left > 0 ? `남은 질문 ${left}번`
+      : session.paid ? '상담권을 다 쓰셨네' : '여기까지가 무료로 볼 수 있는 만큼일세';
+    $('#turns-left').textContent = note;
+    $('#pass-box').classList.toggle('hidden', !(left <= 0 && !session.endedByCrisis));
+    const disabled = session.endedByCrisis || left <= 0;
+    $('#f-ask').disabled = disabled;
+    $('#btn-ask').disabled = disabled;
+  }
+
+  $('#ask-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const box = $('#f-ask');
+    const text = box.value.trim();
+    if (!text || busy) return;
+
+    say('user', text);
+    box.value = ''; box.style.height = '';
+    busy = true;
+    $('#btn-ask').disabled = true;
+    const ph = thinking();
+
+    let res;
+    try {
+      res = await Consult.ask(session, text);
+    } catch (err) {
+      res = { text: '풀이 중에 문제가 생겼네. 잠시 뒤에 다시 물어봐 주시게.' };
+    }
+    ph.remove();
+    say('doryeong', res.text, { crisis: res.crisis });
+    busy = false;
+    syncTurns();
+    if (!$('#f-ask').disabled) $('#f-ask').focus({ preventScroll: true });
   });
 
-  // ---------- 렌더링 ----------
-  function renderAll(chart, counsel, age, ageMonths) {
-    renderToday(chart);
-    renderPillars(chart);
-    renderElements(chart, counsel);
-    renderDayMaster(chart);
-    renderDaeun(chart, counsel, age, ageMonths);
-    renderConcerns(counsel);
-  }
+  // 엔터로 보내기, Shift+엔터는 줄바꿈
+  $('#f-ask').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); $('#ask-form').requestSubmit(); }
+  });
+  $('#f-ask').addEventListener('input', (e) => {
+    e.target.style.height = 'auto';
+    e.target.style.height = Math.min(e.target.scrollHeight, 140) + 'px';
+  });
 
-  // 총개월 → "N세" 또는 "N세 M개월"
-  function fmtAgeM(months) {
-    const y = Math.floor(months / 12), mo = months % 12;
-    return `${y}세` + (mo ? ` ${mo}개월` : '');
-  }
+  $('#btn-pass').addEventListener('click', () => {
+    // 결제 연동 전까지는 그냥 열어준다. 서버가 붙으면 결제 검증 후 grantPass를 부른다.
+    Consult.grantPass(session);
+    say('doryeong', '상담권을 받았네. 이제 다섯 번 더 물을 수 있으니 편히 물어보시게.', { soft: true });
+    syncTurns();
+    $('#f-ask').focus({ preventScroll: true });
+  });
 
-  function renderToday(chart) {
-    // 도령 말풍선: 풀이 도입 + 오늘의 한 마디
-    const t = Counsel.todayMessage(chart);
-    const grp = Manse.SIPSEONG_GROUP[t.sip];
-    $('#dr-result-avatar').innerHTML = Doryeong.media({ kind: 'reveal', loop: false });
-    $('#dr-close-avatar').innerHTML = Doryeong.media({ kind: 'bow', loop: false });
-    $('#dr-intro').innerHTML = `<span class="dr-name">온도령</span>` + esc(Doryeong.resultIntro(chart));
-    $('#dr-today').innerHTML =
-      `오늘은 <b>${t.iljin.stemInfo.han}${t.iljin.branchInfo.han}(${esc(t.iljin.stemInfo.kor + t.iljin.branchInfo.kor)})일</b>, ` +
-      `자네에게 <b>${esc(t.sip)}</b>의 날이구먼.\n${esc(Doryeong.todayLine(grp))}`;
-    $('#dr-closing').innerHTML = `<span class="dr-name">온도령</span>` + esc(Doryeong.CLOSING);
-  }
+  $('#btn-again').addEventListener('click', () => {
+    if (revealTimer) { clearTimeout(revealTimer); revealTimer = null; }
+    busy = false;
+    setLoading(false);
+    session = null; chart = null;
+    show('step-concern');
+  });
 
-  function renderPillars(chart) {
-    const p = chart.pillars;
-    const inp = chart.input;
-    const timeStr = inp.unknownTime ? '시각 모름' :
-      `${String(inp.hour).padStart(2, '0')}:${String(inp.minute).padStart(2, '0')}`;
-    $('#chart-birth-info').textContent =
-      `${inp.year}. ${inp.month}. ${inp.day}. ${timeStr} · ${inp.gender === 'M' ? '남' : '여'}`;
+  // ---------- 명식 요약 ----------
+  function renderChartFold() {
+    const p = chart.pillars, inp = chart.input;
+    const g = (x) => x ? `${x.stemInfo.kor}${x.branchInfo.kor}` : '—';
+    $('#chart-brief').textContent =
+      `${g(p.year)} ${g(p.month)} ${g(p.day)} ${g(p.hour)} · 일간 ${Manse.STEMS[chart.dayStem].kor}`;
 
-    const mk = (pl, key) => {
-      if (!pl) return `<div class="pillar"><div class="pillar-label">시주</div><div class="pillar-empty">시각 정보 없음</div></div>`;
-      const isDay = key === 'day';
-      const stemSip = isDay ? '일간 · 나' : pl.stemSipseong;
-      const hid = pl.hidden.map(h => h.info.kor).join('·');
-      return `
-        <div class="pillar">
-          <div class="pillar-label"><b>${pl.label}</b></div>
-          <div class="glyph-stack">
-            <div class="glyph el-${pl.stemInfo.el} ${isDay ? 'day-stem' : ''}">
-              <span class="han">${pl.stemInfo.han}</span>
-              <span class="kor">${pl.stemInfo.kor} · ${E[pl.stemInfo.el].kor}</span>
-              <span class="sip">${esc(stemSip)}</span>
-            </div>
-            <div class="glyph el-${pl.branchInfo.el}">
-              <span class="han">${pl.branchInfo.han}</span>
-              <span class="kor">${pl.branchInfo.kor} · ${E[pl.branchInfo.el].kor} · ${pl.branchInfo.animal}</span>
-              <span class="sip">${esc(pl.branchSipseong)}</span>
-            </div>
+    const mk = (pl) => {
+      if (!pl) return `<div class="pillar"><div class="pillar-label">시주</div><div class="pillar-empty">시각 모름</div></div>`;
+      const isDay = pl.label === '일주';
+      return `<div class="pillar">
+        <div class="pillar-label"><b>${pl.label}</b></div>
+        <div class="glyph-stack">
+          <div class="glyph el-${pl.stemInfo.el}${isDay ? ' day-stem' : ''}">
+            <span class="han">${pl.stemInfo.han}</span>
+            <span class="kor">${pl.stemInfo.kor} · ${E[pl.stemInfo.el].kor}</span>
+            <span class="sip">${esc(isDay ? '일간 · 나' : pl.stemSipseong)}</span>
           </div>
-          <div class="hidden-stems">지장간 ${hid}</div>
-        </div>`;
+          <div class="glyph el-${pl.branchInfo.el}">
+            <span class="han">${pl.branchInfo.han}</span>
+            <span class="kor">${pl.branchInfo.kor} · ${pl.branchInfo.animal}</span>
+            <span class="sip">${esc(pl.branchSipseong)}</span>
+          </div>
+        </div>
+        <div class="hidden-stems">지장간 ${pl.hidden.map(h => h.info.kor).join('·')}</div>
+      </div>`;
     };
-
-    // 전통 서식(오른쪽→왼쪽: 연월일시)을 CSS direction:rtl로 처리 — DOM 순서는 연월일시
-    $('#pillar-board').innerHTML =
-      mk(p.year, 'year') + mk(p.month, 'month') + mk(p.day, 'day') + mk(p.hour, 'hour');
+    $('#pillar-board').innerHTML = mk(p.year) + mk(p.month) + mk(p.day) + mk(p.hour);
 
     const m = chart.meta;
-    const adj = m.adjusted;
     let note = `절기 기준 ${m.sajuYear}년주 · ${m.monthTerm} 이후 월주`;
-    if (!inp.unknownTime) {
-      note += ` · 보정 시각 ${String(adj.hh).padStart(2, '0')}:${String(adj.mm).padStart(2, '0')}`;
-      if (m.useTrueSolar) note += ' (경도 보정 −30분)';
-    } else {
-      note += ' · 시각 미상 — 정오(12:00) 가정';
-    }
+    note += inp.unknownTime ? ' · 시각 미상, 정오 가정'
+      : ` · 보정 시각 ${String(m.adjusted.hh).padStart(2, '0')}:${String(m.adjusted.mm).padStart(2, '0')}`;
     const warns = [];
-    if (m.boundaryWarning) {
-      warns.push(`⚠ 절기(${m.nearestTermName}) 경계에서 약 ${m.nearestTermMin}분 이내의 출생이에요. 출생 시각이 몇 분만 달라져도 연주·월주가 바뀔 수 있으니, 출생증명서 등으로 시각을 한 번 더 확인해 보세요.`);
-    } else if (m.termDayWarning) {
-      warns.push(`⚠ 태어난 날이 절기(${m.nearestTermName}) 절입일과 가까워요. 시각을 모르는 경우 연주·월주가 실제와 다를 수 있습니다.`);
-    }
-    if (m.timeStatus === 'fold') {
-      warns.push('⚠ 서머타임이 끝나며 두 번 존재했던 시각이에요. 여기서는 표준시 기준으로 해석했습니다.');
-    }
-    if (!m.precise) {
-      warns.push('⚠ 정밀 천문 계산 모듈을 불러오지 못해 근사 계산(±15분)을 사용했어요. 절기 경계 부근이라면 결과가 달라질 수 있습니다.');
-    }
-    $('#board-note').innerHTML = esc(note) + warns.map(w => `<br><span class="note-warn">${esc(w)}</span>`).join('');
-  }
+    if (m.boundaryWarning) warns.push(`절기(${m.nearestTermName}) 경계 ${m.nearestTermMin}분 이내 출생 — 시각을 한 번 더 확인해 보시게`);
+    if (m.timeStatus === 'fold') warns.push('서머타임으로 두 번 존재했던 시각 — 표준시로 해석했네');
+    if (!m.precise) warns.push('정밀 계산 모듈을 못 불러와 근사(±15분)로 계산했네');
+    $('#board-note').innerHTML = esc(note) + warns.map(w => `<br><span class="note-warn">⚠ ${esc(w)}</span>`).join('');
 
-  function renderElements(chart, counsel) {
     const max = Math.max(...chart.elCount, 1);
-    $('#element-chart').innerHTML = chart.elCount.map((v, i) => {
-      const st = counsel.analysis[i].state;
-      const badge = st === 'excess' ? '<span class="el-state excess">강함</span>'
-        : st === 'lack' ? '<span class="el-state lack">옅음</span>' : '';
-      return `
+    $('#element-chart').innerHTML = chart.elCount.map((v, i) => `
       <div class="el-row">
-        <div class="el-name">${E[i].kor}<span class="han">${E[i].han}</span>${badge}</div>
+        <div class="el-name">${E[i].kor}<span class="han">${E[i].han}</span></div>
         <div class="el-track"><div class="el-fill" data-w="${(v / max * 100).toFixed(0)}" style="background:${EL_COLORS[i]}"></div></div>
         <div class="el-val">${v.toFixed(1)}</div>
-      </div>`;
-    }).join('');
-    requestAnimationFrame(() => {
-      document.querySelectorAll('.el-fill').forEach(el => { el.style.width = el.dataset.w + '%'; });
-    });
-
-    const excess = counsel.analysis.filter(a => a.state === 'excess');
-    const lack = counsel.analysis.filter(a => a.state === 'lack');
-    let html = '';
-    if (excess.length === 0 && lack.length === 0) {
-      html = `<p><span class="theme">고른 흐름</span> — 다섯 기운이 비교적 고르게 흐르고 있어요. ${esc(Counsel.ELEMENT_PSY[chart.pillars.day.stemInfo.el].balanced)}</p>`;
-    } else {
-      for (const a of excess) {
-        html += `<p><span class="theme">${E[a.el].kor}(${esc(Counsel.ELEMENT_PSY[a.el].theme)})이 강한 편</span> — ${esc(Counsel.ELEMENT_PSY[a.el].excess)}</p>`;
-      }
-      for (const a of lack) {
-        html += `<p><span class="theme">${E[a.el].kor}(${esc(Counsel.ELEMENT_PSY[a.el].theme)})이 옅은 편</span> — ${esc(Counsel.ELEMENT_PSY[a.el].lack)}</p>`;
-      }
-    }
-    $('#element-comment').innerHTML = html;
-  }
-
-  function renderDayMaster(chart) {
-    const s = chart.pillars.day.stemInfo;
-    const dm = Counsel.DAY_MASTERS[chart.dayStem];
-    $('#dm-ganji').textContent = `일간 ${s.kor}${s.han} · ${E[s.el].kor}`;
-    $('#daymaster-profile').innerHTML = `
-      <div class="dm-header"><span class="dm-title">${esc(dm.title)}</span></div>
-      <p class="dm-essence">${esc(dm.essence)}</p>
-      <div class="dm-block"><h4>마음의 결</h4><p>${esc(dm.mind)}</p></div>
-      <div class="dm-block"><h4>타고난 힘</h4><ul>${dm.strengths.map(x => `<li>${esc(x)}</li>`).join('')}</ul></div>
-      <div class="dm-block"><h4>지치는 순간</h4><p>${esc(dm.stress)}</p></div>
-      <div class="dm-care"><b>마음 처방 —</b> ${esc(dm.care)}</div>`;
-  }
-
-  function renderDaeun(chart, counsel, age, ageMonths) {
-    const cur = counsel.currentDaeun;
-    $('#daeun-timeline').innerHTML = chart.daeun.map(d => `
-      <div class="daeun-item ${cur && d.startMonths === cur.startMonths ? 'current' : ''}">
-        <div class="age">${fmtAgeM(d.startMonths)}~</div>
-        <div class="gz">${d.stemInfo.han}<br>${d.branchInfo.han}</div>
-        <div class="sip">${esc(d.stemSip)} · ${esc(d.branchSip)}</div>
       </div>`).join('');
+    requestAnimationFrame(() => $$('.el-fill').forEach(el => { el.style.width = el.dataset.w + '%'; }));
 
-    const stage = Counsel.lifeStage(age);
-    let html = `<div class="stage">지금 나이 만 ${age}세 — ${esc(stage.name)} · ${esc(stage.msg)}</div>`;
-    if (cur && counsel.currentDaeunMsg) {
-      const cm = counsel.currentDaeunMsg;
-      html = `<h3>지금의 계절 · ${cur.stemInfo.kor}${cur.branchInfo.kor} 대운 「${esc(cm.theme)}」</h3>` + html;
-      html += `<p>${esc(cm.msg)}</p>`;
-    } else if (counsel.currentDaeunStatus === 'before') {
-      const dm2 = chart.meta;
-      const startTxt = `${dm2.daeunAge}세${dm2.daeunMonths ? ' ' + dm2.daeunMonths + '개월' : ''}`;
-      html = `<h3>첫 대운을 기다리는 시기</h3>` + html;
-      html += `<p>첫 대운은 약 ${esc(startTxt)} 무렵 시작돼요. 아직은 타고난 기질이 가장 순수하게 자라는 시기입니다.</p>`;
-    } else {
-      html = `<h3>계절 너머의 시기</h3>` + html;
-      html += `<p>흐름표의 대운 구간을 이미 지나오셨어요. 이제는 운의 계절보다, 지나온 계절들에서 길어 올린 지혜가 삶의 중심이 됩니다.</p>`;
-    }
-    // 대운 경계 안내 — 개월 단위로 남은 기간 계산
-    if (cur) {
-      const monthsLeft = cur.endMonths - ageMonths + 1;
-      if (monthsLeft > 0 && monthsLeft <= 24) {
-        const yl = Math.floor(monthsLeft / 12), ml = monthsLeft % 12;
-        const leftTxt = yl ? `${yl}년${ml ? ' ' + ml + '개월' : ''}` : `${ml}개월`;
-        html += `<p style="margin-top:10px;color:var(--text-dim);font-size:13.5px;">약 ${esc(leftTxt)} 뒤 다음 계절로 넘어갑니다. 계절이 바뀌기 전, 지금 계절의 숙제를 정리해 보기 좋은 때예요.</p>`;
-      }
-    }
-    $('#daeun-counsel').innerHTML = html;
+    const cur = Counsel.currentDaeun(chart.daeun, ageMonths);
+    const fmt = (mo) => `${Math.floor(mo / 12)}세${mo % 12 ? ' ' + (mo % 12) + '개월' : ''}`;
+    $('#daeun-timeline').innerHTML = chart.daeun.map(d => `
+      <div class="daeun-item ${cur.daeun && d.startMonths === cur.daeun.startMonths ? 'current' : ''}">
+        <div class="age">${fmt(d.startMonths)}~</div>
+        <div class="gz">${d.stemInfo.han}<br>${d.branchInfo.han}</div>
+        <div class="sip">${esc(d.stemSip)}</div>
+      </div>`).join('');
   }
 
-  function renderConcerns(counsel) {
-    const tabs = $('#concern-tabs');
-    const body = $('#concern-body');
-    const show = (key) => { body.textContent = counsel.cards[key].body; };
-    tabs.querySelectorAll('.tab').forEach(btn => {
-      btn.onclick = () => {
-        tabs.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        show(btn.dataset.tab);
-      };
-    });
-    tabs.querySelector('.tab').classList.add('active');
-    show('mind');
-  }
-
-  // ---------- 도령 초기 렌더 (모든 정의 이후 실행) ----------
+  // ---------- 초기 렌더 ----------
+  renderTopics();
   $('#dr-hero').innerHTML = Doryeong.media({ kind: 'idle', loop: true, label: '온도령 캐릭터' });
   $('#dr-loading').innerHTML = Doryeong.media({ kind: 'reading', loop: true });
   $('#dr-greet').innerHTML = `<span class="dr-name">온도령</span>` + esc(Doryeong.GREET);
-  document.querySelectorAll('.dr-bridge').forEach(el => {
-    el.textContent = Doryeong.BRIDGES[el.dataset.bridge] || '';
-  });
-  playIn($('#input-section')); // 로딩 오버레이 컷은 열릴 때 켠다
-
-  // 단일 파일 번들에서는 영상이 첫 페인트 뒤에 붙는다. 도착하면 보이는 컷부터 돌린다.
+  playIn($('#step-concern'));
   document.addEventListener('doryeong:videos-ready', () => playIn(activeSection()));
 })();
