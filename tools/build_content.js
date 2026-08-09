@@ -485,6 +485,33 @@ function main() {
         got.push(`${id} ${n}`);
       }
       console.log(`  긴 글 — ${got.join(', ')}`);
+
+      /* 마지막 손질. 두 판을 돌려 안전 지적이 29 → 14건까지 내려왔고,
+         남은 열넷은 문장 하나씩이라 여기서 직접 고친다.
+         전부 같은 갈래다 — 남의 앞날이나 반응을 확정형으로 말한 것. */
+      let done = 0;
+      for (const [box, key, pi, find, to, why] of require('./patches_six.js')) {
+        const ch = db.longform[box] && db.longform[box][key];
+        if (!ch || !ch.paras[pi] || !ch.paras[pi].includes(find)) {
+          console.warn(`  ! 손질 못 찾음: ${box}.${key}[${pi}] — ${why}`);
+          continue;
+        }
+        ch.paras[pi] = ch.paras[pi].replace(find, to);
+        done += 1;
+      }
+      console.log(`  안전 손질 ${done}건 적용`);
+
+      /* 남의 앞날을 "온다" 로 못 박는 꼴이 또 들어오면 잡는다.
+         두 판 내내 이 갈래 하나가 스물아홉 건이었다. 사람 눈으로는 매번 놓친다. */
+      const FUTURE = /(날|달|시기|자리|때)가 와요/g;
+      let fut = 0;
+      for (const id of Object.keys(WANT)) {
+        for (const [k, ch] of Object.entries(db.longform[id])) {
+          const m = (ch.paras || []).join(' ').match(FUTURE);
+          if (m) { fut += m.length; console.warn(`  ! ${id}.${k} — 남의 앞날을 못 박음 "${m[0]}"`); }
+        }
+      }
+      if (!fut) console.log('    앞날 확정형 0건');
     }
 
     /* ── 유료분을 따로 뺀다 ─────────────────────────────

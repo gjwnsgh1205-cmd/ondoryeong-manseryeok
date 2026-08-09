@@ -27,12 +27,21 @@ const WANT = {
 const out = { hiddenFace: [], firstLook: [], beside: [], friction: [], turning: [], yearWork: [], audits: [] };
 
 /* 묶음을 알아내는 법.
-   hiddenFace 만 "같음-/다름-" 접두어가 붙어 바로 잡힌다.
-   firstLook 과 beside 는 열쇠가 똑같이 십성 열 개다 — 열쇠로는 못 가른다.
-   그래서 **먼저 온 십성 묶음이 firstLook, 다음이 beside** 로 둔다(워크플로 순서 그대로).
-   friction·turning·yearWork 도 다섯 묶음이 같아서 온 순서로 가른다. */
-const sipSeen = [];
-const grpSeen = [];
+
+   hiddenFace 만 "같음-/다름-" 접두어가 붙어 열쇠로 바로 잡힌다.
+   나머지 다섯은 열쇠가 겹친다 — 십성 열 개짜리가 둘, 다섯 묶음짜리가 셋.
+
+   처음엔 **온 순서**로 갈랐는데 틀렸다. 워크플로가 parallel 로 돌아서
+   끝나는 순서가 JOBS 순서와 다르다. friction 자리에 올해 일 글이 들어가 있었고,
+   빌드 손질이 "못 찾음" 을 띄워 준 덕에 알았다.
+
+   그래서 **글 안에 있는 말**로 가른다. 순서에 기대지 않으니 다시 돌려도 같은 답이 나온다.
+     대운·다음간지  → turning     열 해마다 바뀌는 흐름
+     세운·올해간지  → yearWork    한 해마다 바뀌는 흐름
+     둘 다 없으면   → friction    부딪히는 자리
+     월지·사회궁    → firstLook   밖에서 남이 먼저 읽는 자리
+     일지·가까운    → beside      내가 누구 옆에서 편한가 */
+const pools = [];
 
 for (const line of fs.readFileSync(path, 'utf8').trim().split('\n')) {
   let o;
@@ -45,13 +54,38 @@ for (const line of fs.readFileSync(path, 'utf8').trim().split('\n')) {
 
   const keys = r.entries.map((x) => x.key);
   if (keys.some((k) => /^(같음|다름)-/.test(k))) { out.hiddenFace = r.entries; continue; }
-  if (keys.length === 10) { sipSeen.push(r.entries); continue; }
-  if (keys.length === 5) { grpSeen.push(r.entries); continue; }
+  pools.push(r.entries);
 }
 
-// 워크플로가 JOBS 순서대로 돌려주므로 그 순서로 배정한다.
-[out.firstLook, out.beside] = [sipSeen[0] || [], sipSeen[1] || []];
-[out.friction, out.turning, out.yearWork] = [grpSeen[0] || [], grpSeen[1] || [], grpSeen[2] || []];
+/* 글 안의 말로 갈래를 정한다. 순서에 안 기댄다. */
+const textOf = (es) => es.flatMap((x) => [x.title, x.lead, ...(x.paras || [])]).join(' ');
+const hits = (es, re) => (textOf(es).match(re) || []).length;
+
+for (const es of pools) {
+  const n = es.length;
+  if (n === 10) {
+    // 첫인상은 월지(사회궁), 곁에 둘 사람은 일지(가장 가까운 자리)를 말한다.
+    const near = hits(es, /가까운|곁|일지|같이 있|옆에/g);
+    const out9 = hits(es, /밖에서|처음 보|첫인상|월지|사회/g);
+    if (near > out9) out.beside = es; else out.firstLook = es;
+    continue;
+  }
+  if (n === 5) {
+    const dae = hits(es, /대운|열 해|십 년|다음간지/g);
+    const se = hits(es, /세운|올해|한 해마다/g);
+    if (dae > se) out.turning = es;
+    else if (se > 0) out.yearWork = es;
+    else out.friction = es;
+  }
+}
+// 다섯 묶음 셋 중 아직 안 채워진 자리가 있으면 남은 것을 넣는다.
+for (const es of pools) {
+  if (es.length !== 5) continue;
+  if (out.turning === es || out.yearWork === es || out.friction === es) continue;
+  if (!out.friction.length) out.friction = es;
+  else if (!out.turning.length) out.turning = es;
+  else if (!out.yearWork.length) out.yearWork = es;
+}
 
 fs.writeFileSync('tools/six_source.json', JSON.stringify(out, null, 1), 'utf8');
 
