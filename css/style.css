@@ -1455,3 +1455,17 @@ body.is-guiding .paybar { display: none; }
   text-wrap: pretty;
 }
 .cn-advice { padding-top: .4rem; border-top: 1px dashed var(--line); }
+
+/* 이름 칸 — 숫자 칸과 달리 왼쪽 정렬이다. 이름은 가운데 두면 어색하다.
+   폼에서 유일하게 안 적어도 되는 칸이라 라벨에 그렇게 적어뒀다. */
+.fld-name input {
+  text-align: left;
+  padding-left: .9rem;
+  font-size: 1rem;
+  font-variant-numeric: normal;
+}
+.fld-name label {
+  text-align: left;
+  left: .9rem; right: auto;
+  letter-spacing: .08em;
+}

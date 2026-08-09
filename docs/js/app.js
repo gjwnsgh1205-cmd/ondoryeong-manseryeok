@@ -69,6 +69,26 @@
      "지금 …" 으로 시작하게 만든다 — "님은 지금" 이 남지 않게.
      이름을 받기 시작하면 여기만 바꾸면 된다. */
   const NAME_KEY = 'ondoryeong.name.v1';
+
+  /* 이름을 다듬는다.
+     풀이에 "{이름}님은" 으로 들어가는 값이라 뒤에 '님' 이 붙는다.
+     "유진님" 이라고 적은 사람에게 "유진님님은" 이 되면 안 되니 끝의 님·씨를 뗀다.
+     따옴표·꺾쇠는 굵게 표시(**)와 섞이면 화면이 깨져서 지운다. */
+  const cleanName = (s) => String(s || '')
+    .replace(/[<>"'*{}]/g, '')
+    .trim()
+    .replace(/(님|씨)$/, '')
+    .trim()
+    .slice(0, 12);
+
+  const saveName = (s) => {
+    try {
+      const v = cleanName(s);
+      if (v) localStorage.setItem(NAME_KEY, v);
+      else localStorage.removeItem(NAME_KEY);
+    } catch (e) { /* 못 적어도 진행 — 이름은 없어도 글이 성립한다 */ }
+  };
+
   const readerName = () => {
     try { return (localStorage.getItem(NAME_KEY) || '').trim().slice(0, 12); }
     catch (e) { return ''; }
@@ -237,6 +257,7 @@
       $('f-hour').value = saved.unknownTime ? '' : saved.hh;
       $('f-minute').value = saved.unknownTime ? '' : saved.mm;
       $('f-unknown-time').checked = !!saved.unknownTime;
+      if ($('f-name')) $('f-name').value = readerName();
       $('time-row').classList.toggle('hidden', !!saved.unknownTime);
       document.querySelector(`input[name="gender"][value="${saved.gender}"]`).checked = true;
       syncConv();
@@ -270,6 +291,8 @@
 
     chart = c;
     try { localStorage.setItem(STORE, JSON.stringify(got.raw)); } catch (e) { /* 저장 못 해도 진행 */ }
+    // 이름은 계산에 안 들어간다. 글의 {이름} 슬롯을 채우는 데만 쓴다.
+    saveName($('f-name') ? $('f-name').value : '');
 
     rp = Report.build(chart, { unlocked: opened() });
     renderReport();
@@ -1515,7 +1538,8 @@
     });
 
     $('btn-reset').addEventListener('click', () => {
-      try { localStorage.removeItem(STORE); } catch (e) {}
+      // 이름도 같이 지운다. 같은 기기를 나눠 쓰는 사람에게 남의 이름이 뜨면 안 된다.
+      try { localStorage.removeItem(STORE); localStorage.removeItem(NAME_KEY); } catch (e) {}
       chart = null; rp = null; session = null; picked = null;
       $('report').classList.add('hidden');
       $('consult').classList.add('hidden');

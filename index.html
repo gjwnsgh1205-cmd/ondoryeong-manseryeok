@@ -49,6 +49,16 @@
 
   <form id="birth-form" class="gate-form" autocomplete="off" novalidate>
 
+    <!-- 이름. 안 적어도 된다.
+         풀이 129편이 "{이름}님은 …" 으로 열리게 쓰여 있는데, 비면 그 덩어리가
+         통째로 지워져 "지금 …" 으로 시작한다. 그래서 required 를 안 붙였다.
+         적으면 이 기기에만 남는다 — 서버로도, 공유 링크로도 안 나간다. -->
+    <div class="fld fld-name">
+      <input type="text" id="f-name" maxlength="12" placeholder="유진"
+             autocomplete="off" spellcheck="false">
+      <label for="f-name">이름 (안 적어도 돼요)</label>
+    </div>
+
     <div class="cal-seg" role="radiogroup" aria-label="달력 종류">
       <label><input type="radio" name="cal" value="solar" checked><span>양력</span></label>
       <label><input type="radio" name="cal" value="lunar"><span>음력</span></label>
