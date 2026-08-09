@@ -629,6 +629,107 @@ const Report = (() => {
     };
   }
 
+  /* ══════════════ 남은 여섯 주제 ══════════════
+     카드 12장 중 아직 긴 글로 안 옮긴 것들이다.
+     재물·일과 같은 방식으로, 글을 고르는 열쇠를 엔진이 계산한다.
+
+     축을 넓게 잡으면 조합이 수백 개가 되고 결국 못 쓴다.
+     그래서 각 주제마다 **가장 뜻이 큰 축 하나**만 쓴다. 나머지는 문단 안 슬롯으로 둔다. */
+
+  /* ③ 두 번째 얼굴 — 겉으로 드러난 십성과 지지 속(지장간)에 숨은 십성이 다른가.
+     천간은 남이 보는 나고, 지장간은 안에서 실제로 움직이는 나다. */
+  function hiddenFace(chart) {
+    const P = chart.pillars;
+    // 겉 — 천간에 드러난 십성 중 일간을 뺀 것들의 최다 그룹
+    const outer = {};
+    for (const k of ['year', 'month', 'hour']) {
+      const p = P[k];
+      if (!p || !p.stemSipseong) continue;
+      const g = groupOf(p.stemSipseong);
+      outer[g] = (outer[g] || 0) + 1;
+    }
+    // 속 — 네 지지의 지장간 전체에서 최다 그룹
+    const inner = {};
+    for (const k of ['year', 'month', 'day', 'hour']) {
+      const p = P[k];
+      if (!p) continue;
+      for (const s of p.branchInfo.hidden) {
+        const g = groupOf(M.sipseong(chart.dayStem, s));
+        inner[g] = (inner[g] || 0) + 1;
+      }
+    }
+    const top = (o) => Object.entries(o).sort((a, b) => b[1] - a[1])[0];
+    const ot = top(outer), it = top(inner);
+    const outG = ot ? ot[0] : '비겁';
+    const inG = it ? it[0] : '비겁';
+    return {
+      outer: outG, inner: inG,
+      same: outG === inG,
+      // 같으면 "겉과 속이 한 방향", 다르면 속 쪽이 이야기의 주인공이다
+      key: outG === inG ? `같음-${inG}` : `다름-${inG}`,
+    };
+  }
+
+  /* ⑦ 첫인상 — 월지는 사회궁이다. 밖에 나갔을 때 남이 먼저 읽는 자리. */
+  function firstLook(chart) {
+    const mb = chart.pillars.month;
+    const sip = mb ? mb.branchSipseong : '비견';
+    return { sip, group: groupOf(sip), key: sip };
+  }
+
+  /* ⑧ 곁에 있으면 편한 사람 — 일지는 배우자궁이다.
+     남을 점치는 게 아니라 **내가 누구 옆에서 편한지**를 본다. */
+  function beside(chart) {
+    const db = chart.pillars.day;
+    const sip = db ? db.branchSipseong : '비견';
+    return { sip, group: groupOf(sip), key: sip };
+  }
+
+  /* ⑨ 사람과 틀어질 때 되풀이하는 대목 — 가장 센 기운이 부딪히는 자리에서 난다. */
+  function friction(chart) {
+    const g = groupShares(chart);
+    const top = Object.entries(g).sort((a, b) => b[1] - a[1])[0];
+    const low = Object.entries(g).sort((a, b) => a[1] - b[1])[0];
+    return { strongest: top[0], weakest: low[0], key: top[0] };
+  }
+
+  /* ⑥ 다음 십 년으로 갈아타는 그 해 그 달 —
+     지금 대운이 언제 끝나고 다음이 어떤 기운인지. 나이를 못 박지 않고 남은 햇수로 말한다. */
+  function turning(chart, now = new Date()) {
+    const ageM = ageMonthsNow(chart, now);
+    const list = chart.daeun || [];
+    const idx = list.findIndex((d) => ageM >= d.startMonths && ageM <= d.endMonths);
+    if (idx < 0 || idx + 1 >= list.length) return null;
+    const cur = list[idx], nxt = list[idx + 1];
+    const leftM = cur.endMonths - ageM + 1;
+    const born = chart.input;
+    // 다음 대운이 시작되는 연·월. 태어난 달에 개월수를 더하면 나온다.
+    const startAbs = (born.year * 12 + (born.month - 1)) + nxt.startMonths;
+    return {
+      from: groupOf(cur.stemSip), to: groupOf(nxt.stemSip),
+      leftMonths: leftM,
+      leftYears: Math.floor(leftM / 12),
+      year: Math.floor(startAbs / 12),
+      month: (startAbs % 12) + 1,
+      ganji: nxt.stemInfo.kor + nxt.branchInfo.kor,
+      han: nxt.stemInfo.han + nxt.branchInfo.han,
+      key: groupOf(nxt.stemSip),
+    };
+  }
+
+  /* ⑫ 올해 일에 들어온 기운 — 세운(올해)이 일 쪽에 무엇을 얹는가. */
+  function yearWork(chart, now = new Date()) {
+    const yp = M.currentYearPillar(now);
+    const rel = M.sipseong(chart.dayStem, yp.stem);
+    return {
+      year: yp.year,
+      ganji: yp.stemInfo.kor + yp.branchInfo.kor,
+      han: yp.stemInfo.han + yp.branchInfo.han,
+      relation: rel, group: groupOf(rel),
+      key: groupOf(rel),
+    };
+  }
+
   /* ══════════════ 챕터 ══════════════
      주제 12개의 목록이다. 예전엔 이걸 카드 12장으로 화면에 늘어놓았는데,
      목록이 제 위에 있는 탭을 그대로 다시 부르는 꼴이라 걷어냈다.
@@ -684,6 +785,7 @@ const Report = (() => {
     TOTAL_CHARTS, TOTAL_CHARTS_NO_HOUR, totalFor, build, rarity, strength, typeName,
     luckCurve, todayLuck, tomorrowPeek, branchRelation, todayScore, weekAhead,
     thisYear, thisMonth, flow, chapters, wealth, work,
+    hiddenFace, firstLook, beside, friction, turning, yearWork,
     ageMonthsNow, currentPoint, dayStamp,
     skewScore, strengthRatio, groupShares,
   };

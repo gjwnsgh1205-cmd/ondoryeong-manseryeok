@@ -982,7 +982,7 @@
     // 되살아나며 그리는 경우(처음 진입·자정 갱신)까지 올리면 읽던 자리를 잃는다.
     if (prev !== null && !opt.keepScroll) {
       const bar = $('tabs');
-      if (bar) window.scrollTo({ top: Math.max(0, bar.offsetTop - 8), behavior: 'instant' });
+      if (bar) window.scrollTo({ top: Math.max(0, bar.offsetTop - bar.offsetHeight - 8), behavior: 'instant' });
     }
     // 새로 뜬 판의 애니메이션을 다시 걸어준다 — 숨어 있던 동안은 관찰이 안 됐다.
     observeReveal();
@@ -1388,7 +1388,7 @@
       rp = Report.build(chart, { unlocked: opened() });
       renderReport();
       const bar = $('tabs');
-      if (bar) window.scrollTo({ top: Math.max(0, bar.offsetTop - 8), behavior: 'smooth' });
+      if (bar) window.scrollTo({ top: Math.max(0, bar.offsetTop - bar.offsetHeight - 8), behavior: 'smooth' });
     });
 
     /* 가려진 자리를 여는 단추(.td-open)는 글 안에서 만들어진다.
