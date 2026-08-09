@@ -954,6 +954,51 @@
     ], a.basis, 'wealth', w.key);
   }
 
+  /* 남은 여섯 주제. 재물·일과 같은 방식이다 —
+     엔진이 계산한 열쇠로 글을 고르고, 잠긴 문단은 유료 파일에서 채운다.
+
+     한 함수로 묶은 이유. 여섯이 하는 일이 똑같아서다 —
+     열쇠 하나로 글 하나를 꺼내 그린다. 여섯 벌로 늘어놓으면
+     고칠 때 다섯 군데를 고치고 한 군데를 빼먹는다. */
+  const SIX = [
+    ['hiddenFace', (r) => r.hiddenFace && r.hiddenFace.key],
+    ['firstLook', (r) => r.firstLook && r.firstLook.key],
+    ['beside', (r) => r.beside && r.beside.key],
+    ['friction', (r) => r.friction && r.friction.key],
+    ['turning', (r) => r.turning && r.turning.key],
+    ['yearWork', (r) => r.yearWork && r.yearWork.key],
+  ];
+
+  function renderSix() {
+    const c = typeof Content !== 'undefined' ? Content : null;
+    const lf = (c && c.longform) || {};
+    for (const [id, keyOf] of SIX) {
+      const box = $(id);
+      if (!box) continue;
+      const key = keyOf(rp);
+      const ch = key && lf[id] && lf[id][key];
+      if (!CP || !ch) { box.innerHTML = ''; continue; }
+
+      /* 슬롯에 넣을 값. 묶음마다 쓰는 게 다르다.
+         갈아타는 때는 남은 햇수와 다음 간지를, 올해 일은 연도와 간지를 쓴다. */
+      const t = rp.turning, y = rp.yearWork;
+      box.innerHTML = CP.render(ch, {
+        open: opened(),
+        paid: paidFor(id, key),
+        values: {
+          이름: readerName(),
+          남은해: t ? String(Math.max(1, t.leftYears)) : '',
+          갈아탈해: t ? String(t.year) : '',
+          다음간지: t ? `${t.ganji}(${t.han})` : '',
+          올해: y ? String(y.year) : '',
+          올해간지: y ? `${y.ganji}(${y.han})` : '',
+        },
+        cta: `<button type="button" class="td-open" data-open="1">${
+          SUB_PRICE.toLocaleString('ko-KR')}원으로 마저 읽기</button>`,
+      });
+    }
+  }
+
   function renderWork() {
     const c = typeof Content !== 'undefined' ? Content : null;
     const lf = c && c.longform;
@@ -1136,6 +1181,7 @@
     renderToday();
     renderWealth();
     renderWork();
+    renderSix();
     renderPaybar();
     renderInvite();
     $('cs-name').textContent = rp.type.name;

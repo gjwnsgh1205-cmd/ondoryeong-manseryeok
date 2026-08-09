@@ -470,6 +470,23 @@ function main() {
     }
     if (baked) console.warn(`  ! 긴 글 ${baked}장이 {물상} 슬롯 대신 물상을 본문에 박아뒀다`);
 
+    /* 남은 여섯 주제. 재물·일과 같은 방식이다 —
+       엔진이 열쇠를 계산하고 여기서 그 열쇠에 맞는 글을 꽂는다. */
+    const SIX = path.join(ROOT, 'tools', 'six_source.json');
+    if (fs.existsSync(SIX)) {
+      const six = JSON.parse(fs.readFileSync(SIX, 'utf8'));
+      const WANT = { hiddenFace: 10, firstLook: 10, beside: 10, friction: 5, turning: 5, yearWork: 5 };
+      const got = [];
+      for (const id of Object.keys(WANT)) {
+        db.longform[id] = {};
+        (six[id] || []).forEach((x) => { db.longform[id][x.key] = strip(x, ['key']); });
+        const n = Object.keys(db.longform[id]).length;
+        if (n !== WANT[id]) console.warn(`  ! ${id} ${n}/${WANT[id]}편`);
+        got.push(`${id} ${n}`);
+      }
+      console.log(`  긴 글 — ${got.join(', ')}`);
+    }
+
     /* ── 유료분을 따로 뺀다 ─────────────────────────────
        지금은 잠긴 문단이 content.js 안에 그대로 실려 브라우저로 내려간다.
        화면에서는 막대로 가리지만 파일을 열면 다 읽힌다. 라이브에서 확인했다.
@@ -481,7 +498,8 @@ function main() {
        코덱스와 (b) 로 합의한 자리다.
 
        나누고 나면 처음 받는 파일이 그만큼 가벼워지는 이득도 있다. */
-    const paid = { natures: {}, today: {}, daeun: {}, wealth: {}, work: {} };
+    const paid = { natures: {}, today: {}, daeun: {}, wealth: {}, work: {},
+                   hiddenFace: {}, firstLook: {}, beside: {}, friction: {}, turning: {}, yearWork: {} };
     let moved = 0, movedBytes = 0;
     for (const box of Object.keys(paid)) {
       for (const [k, ch] of Object.entries(db.longform[box] || {})) {

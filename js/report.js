@@ -775,6 +775,13 @@ const Report = (() => {
       chapters: chapters(chart, opt.unlocked),
       wealth: wealth(chart),
       work: work(chart),
+      // 남은 여섯 주제. 각자 열쇠 하나를 내고, 화면이 그 열쇠로 글을 고른다.
+      hiddenFace: hiddenFace(chart),
+      firstLook: firstLook(chart),
+      beside: beside(chart),
+      friction: friction(chart),
+      turning: turning(chart, now),
+      yearWork: yearWork(chart, now),
       totalCharts: totalFor(chart),
       // 시각을 모르면 여덟 글자가 아니라 여섯 글자다. 화면 문구가 이 값을 보고 갈린다.
       glyphCount: (chart.meta && chart.meta.assumedNoon) ? 6 : 8,
