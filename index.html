@@ -149,6 +149,27 @@
        네 덩이를 지나야 했다. 넷으로 갈라 각자 첫 화면을 갖게 했다.
        이름은 명리 용어가 아니라 누구나 아는 말로 붙인다.
        ════════════════════════════════════════════════════ -->
+  <!-- ════════════════════════════════════════════════════
+       안내 — 처음 온 사람은 한 번에 하나씩 본다.
+
+       탭 넷을 한꺼번에 던지면 어디부터 볼지 모른다.
+       도령이 "먼저 타고난 성격부터 보겠네" 하고 하나씩 넘겨준다.
+       다 보고 나면 그때 탭이 열려 한눈에 볼 수 있게 된다.
+
+       여기 말투만 도령체다. 안내는 분위기고, 분석 본문은 읽혀야 하니 현대어로 간다.
+       ════════════════════════════════════════════════════ -->
+  <div class="guide hidden" id="guide" aria-live="polite">
+    <div class="guide-say">
+      <div id="dr-guide" class="dr-guide" aria-hidden="true"></div>
+      <p class="guide-line" id="guide-line"></p>
+    </div>
+    <div class="guide-nav">
+      <button type="button" class="guide-prev" id="guide-prev">이전</button>
+      <span class="guide-dots" id="guide-dots" aria-hidden="true"></span>
+      <button type="button" class="guide-next" id="guide-next">다음</button>
+    </div>
+  </div>
+
   <nav class="tabs" id="tabs" role="tablist" aria-label="풀이 갈래">
     <button type="button" role="tab" id="tab-today"  aria-controls="pane-today"  data-tab="today">오늘의 운수</button>
     <button type="button" role="tab" id="tab-nature" aria-controls="pane-nature" data-tab="nature">타고난 성격</button>
@@ -225,6 +246,9 @@
       </div>
     </div>
   </section>
+
+  <!-- 안내를 다 본 사람에게만 뜬다. 처음부터 다시 넘겨보고 싶을 때. -->
+  <button type="button" id="btn-guide-again" class="guide-again">온도령 안내 다시 보기</button>
 
   <div class="rp-actions">
     <button id="btn-share" class="btn-ghost">이 풀이 간직하기</button>

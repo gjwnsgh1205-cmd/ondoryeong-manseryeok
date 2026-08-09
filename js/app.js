@@ -33,6 +33,7 @@
   const SIT = typeof Situation !== 'undefined' ? Situation : null;
   const SH = typeof Share !== 'undefined' ? Share : null;
   const CP = typeof Chapter !== 'undefined' ? Chapter : null;
+  const J = typeof Josa !== 'undefined' ? Josa : null;
 
   /* 긴 글은 "{이름}님은 지금 …" 으로 열린다.
      지금은 이름을 안 받는다. 빈 값이면 Chapter 가 그 덩어리째 지우고
@@ -224,17 +225,19 @@
     const got = readBirth();
     if (got.err) { err.textContent = got.err; $('f-year').focus(); return; }
 
-    if (!opt.silent) showVeil();
-
+    /* 계산을 먼저 한다. 로딩 화면이 그 결과를 짚어가며 보여줘야 하기 때문이다.
+       계산은 100밀리초 안에 끝나니 먼저 해도 화면이 늦게 뜨지 않는다.
+       터졌을 때 로딩을 띄웠다 지우는 깜빡임도 없어진다. */
     let c;
     try {
       c = Manse.compute(got.input);
     } catch (e) {
-      hideVeil();
       err.textContent = doryeongSay(e);
       if (!opt.silent) err.scrollIntoView({ block: 'center', behavior: 'smooth' });
       return;
     }
+
+    const wait = opt.silent ? 0 : showVeil(c);
 
     chart = c;
     try { localStorage.setItem(STORE, JSON.stringify(got.raw)); } catch (e) { /* 저장 못 해도 진행 */ }
@@ -243,13 +246,23 @@
     renderReport();
 
     if (!opt.silent) {
-      await sleep(1100);   // 계산은 순식간이지만, 넘겨보는 시늉은 필요하다
+      await sleep(wait);
       hideVeil();
     }
 
     $('gate').classList.add('hidden');
     $('report').classList.remove('hidden');
     window.scrollTo({ top: 0, behavior: opt.silent ? 'auto' : 'smooth' });
+
+    /* 안내를 켤지 정한다.
+
+       판정을 **저장된 생년월일이 있느냐**로 하면 안 된다. 그 값은 안내가 끝나기 전에
+       이미 저장되기 때문이다(위 localStorage.setItem). 안내 도중 창을 닫은 사람이
+       다음에 왔을 때 나머지를 통째로 건너뛴다.
+       그래서 안내를 끝까지 본 사람만 찍히는 열쇠를 따로 둔다. */
+    if (!guideDone()) startGuide();
+    else if (activeTab === null) showTab('today', { force: true });
+
     observeReveal();
   }
 
@@ -264,23 +277,78 @@
     return '명식을 세우지 못했어요. 적어주신 날짜를 다시 확인해 주세요.';
   }
 
-  const VEIL_LINES = ['어디 보자…', '절기를 짚어보는 중이네', '여덟 글자가 잡혔네'];
+  /* ══════════════════════════════════════════════════════
+     만세력을 넘기는 동안
+
+     계산은 브라우저에서 100밀리초 안에 끝난다. 여기서 시간을 끄는 건 순전히 연출이다.
+     그런데 그 연출이 없으면 "생년월일을 넣었더니 글이 떴다" 가 되고,
+     사람은 그걸 계산이라고 느끼지 않는다.
+
+     그래서 **실제로 계산한 값을 순서대로 짚어가며** 보여준다.
+     지어낸 진행 막대가 아니라 진짜 중간 결과다 — 절기를 짚고, 시차를 보정하고,
+     여덟 글자를 세우고, 기운을 단다. 마지막 줄에는 그 사람의 유형 이름이 뜬다.
+
+     말투는 도령체다. 여기는 안내지 분석이 아니다.
+     분석 본문은 현대어로 간다 — 그래야 읽힌다.
+     ══════════════════════════════════════════════════════ */
   let veilTimer = 0;
 
-  function showVeil() {
+  /* 화면에 흘릴 줄을 만든다. 명식이 있으면 그 값으로, 없으면 일반적인 말로. */
+  function veilLines(c) {
+    if (!c) return [{ t: '어디 보자…', ms: 900 }];
+    const P = c.pillars;
+    const m = c.meta || {};
+    const g = (k) => (P[k] ? P[k].stemInfo.han + P[k].branchInfo.han : '');
+    const rows = [
+      { t: '어디 보자…', ms: 1000 },
+      { t: `${c.input.year}년 ${c.input.month}월 ${c.input.day}일이라…`, ms: 1000 },
+    ];
+    /* 절기 — 이 앱이 제일 공들인 계산이라 이름을 그대로 보여준다.
+       monthTerm 이 이 사람의 월주를 정한 절기다.
+       nearestTermName 은 '가장 가까운' 절기라 아직 오지 않은 것일 수도 있다 —
+       4월 21일생에게 "입하가 지났군" 이라고 띄웠다가 걸렸다. 입하는 5월이다.
+       조사도 코드가 고른다. "입하이" 가 떴었다. */
+    if (m.monthTerm) {
+      rows.push({ t: J ? J.fill('절기를 짚어보는 중이네. {절기}가 지났군', { 절기: m.monthTerm })
+                       : `절기를 짚어보는 중이네. ${m.monthTerm}`, ms: 1400 });
+    } else {
+      rows.push({ t: '절기를 짚어보는 중이네', ms: 1300 });
+    }
+    // 표준시가 지금과 달랐던 해에 태어났으면 그것도 짚는다
+    if (m.tzOffsetMin && m.tzOffsetMin !== 540) {
+      rows.push({ t: '그 시절 시계가 지금과 달랐구먼. 그만큼 물려두지', ms: 1300 });
+    }
+    rows.push({ t: `여덟 글자가 잡혔네. ${g('year')} ${g('month')} ${g('day')} ${g('hour')}`.trim(), ms: 1500 });
+    rows.push({ t: '이제 기운의 무게를 달아보겠네', ms: 1200 });
+    return rows;
+  }
+
+  function showVeil(c) {
     if (DR) $('dr-veil').innerHTML = DR.media({ kind: 'reading', loop: true, label: '만세력을 넘기는 온도령' });
     playIn($('dr-veil'));
     $('veil').classList.remove('hidden');
+
+    const rows = veilLines(c);
     let i = 0;
-    $('veil-text').textContent = VEIL_LINES[0];
-    clearInterval(veilTimer);
-    veilTimer = setInterval(() => {
-      i = (i + 1) % VEIL_LINES.length;
-      $('veil-text').textContent = VEIL_LINES[i];
-    }, 700);
+    const step = () => {
+      const r = rows[i];
+      const el = $('veil-text');
+      el.textContent = r.t;
+      // 줄이 바뀔 때마다 살짝 올라오게. 같은 자리에서 글자만 갈리면 안 읽힌다.
+      el.classList.remove('is-in');
+      void el.offsetWidth;
+      el.classList.add('is-in');
+      i += 1;
+      if (i < rows.length) veilTimer = setTimeout(step, r.ms);
+    };
+    clearTimeout(veilTimer);
+    step();
+    // 전부 흘리는 데 걸리는 시간. 이만큼은 기다렸다가 결과를 연다.
+    return rows.reduce((a, r) => a + r.ms, 0);
   }
+
   function hideVeil() {
-    clearInterval(veilTimer);
+    clearTimeout(veilTimer);
     $('veil').classList.add('hidden');
     $('dr-veil').innerHTML = '';
   }
@@ -922,6 +990,87 @@
     if (rp) renderPaybar();
   }
 
+  /* ══════════════════════════════════════════════════════
+     안내 — 처음 온 사람에게 한 번에 하나씩
+
+     탭 넷을 한꺼번에 던지면 어디부터 볼지 모른다.
+     도령이 하나씩 넘겨주고, 다 보고 나서야 탭이 열린다.
+
+     한 걸음에서 보여주는 건 **제목과 첫 문단까지**다. 그 이상은 한 화면을 넘는다.
+     나머지는 안내가 끝나고 탭에서 본다.
+
+     말투는 여기서만 도령체다. 분석 본문은 현대어로 둔다 — 그래야 읽힌다.
+     ══════════════════════════════════════════════════════ */
+  const GUIDE_DONE = 'ondoryeong.guide.v1';
+  const STEPS = [
+    { tab: 'nature', say: '먼저 타고난 성격부터 보겠네.' },
+    { tab: 'saju', say: '사주팔자도 소개해 주지. 여덟 글자가 이렇게 서 있네.' },
+    { tab: 'flow', say: '인생 흐름은 이렇다네. 열 해마다 바람이 갈리지.' },
+    { tab: 'today', say: '그리고 오늘. 여긴 날마다 바뀌니 내일 또 오시게.' },
+  ];
+  let step = -1;
+
+  const guideDone = () => {
+    try { return localStorage.getItem(GUIDE_DONE) === '1'; } catch (e) { return false; }
+  };
+  const markGuideDone = () => {
+    try { localStorage.setItem(GUIDE_DONE, '1'); } catch (e) { /* 못 적어도 진행 */ }
+  };
+
+  function paintGuide() {
+    const s = STEPS[step];
+    if (!s) return;
+    $('guide-line').textContent = s.say;
+    $('guide-prev').disabled = step === 0;
+    $('guide-next').textContent = step === STEPS.length - 1 ? '한눈에 보기' : '다음';
+    $('guide-dots').textContent = `${step + 1} / ${STEPS.length}`;
+    showTab(s.tab, { keepScroll: true, force: true });
+    window.scrollTo({ top: 0, behavior: 'instant' });
+    // 도령이 매 걸음 인사한다. 마지막 걸음만 절하는 영상으로 바꿔 끝을 알린다.
+    if (DR) {
+      $('dr-guide').innerHTML = DR.media({
+        kind: step === STEPS.length - 1 ? 'bow' : 'idle', loop: false, label: '',
+      });
+      playIn($('dr-guide'));
+    }
+  }
+
+  function startGuide() {
+    step = 0;
+    $('report').classList.add('is-guiding');
+    document.body.classList.add('is-guiding');
+    $('guide').classList.remove('hidden');
+    paintGuide();
+  }
+
+  function endGuide() {
+    step = -1;
+    markGuideDone();
+    $('report').classList.remove('is-guiding');
+    document.body.classList.remove('is-guiding');
+    $('guide').classList.add('hidden');
+    // 안내는 성격에서 끝나지만, 한눈에 보기로 넘어오면 오늘이 먼저다.
+    // 매일 오게 만드는 자리가 거기라서다.
+    showTab('today', { force: true });
+    renderPaybar();
+    observeReveal();
+  }
+
+  function wireGuide() {
+    const nx = $('guide-next'), pv = $('guide-prev');
+    if (!nx || !pv) return;
+    nx.addEventListener('click', () => {
+      if (step >= STEPS.length - 1) { endGuide(); return; }
+      step += 1; paintGuide();
+    });
+    pv.addEventListener('click', () => {
+      if (step <= 0) return;
+      step -= 1; paintGuide();
+    });
+    const again = $('btn-guide-again');
+    if (again) again.addEventListener('click', startGuide);
+  }
+
   function wireTabs() {
     const bar = $('tabs');
     if (!bar) return;
@@ -957,8 +1106,9 @@
     renderPaybar();
     renderInvite();
     $('cs-name').textContent = rp.type.name;
-    // 아직 어느 탭도 안 열렸으면 첫 방문이다. "이게 나를 맞히나" 를 재는 자리로 연다.
-    if (activeTab === null) showTab('nature', { keepScroll: true, force: true });
+    /* 탭을 고르는 일은 여기서 하지 않는다. cast() 가 안내를 켤지 말지 정한 뒤에 정해진다.
+       다만 안내 중에 다시 그리는 경우(자정 넘김 등)에는 보던 걸음을 지켜야 한다. */
+    if (activeTab === null && guideDone()) showTab('today', { keepScroll: true, force: true });
   }
 
   // 탭을 켜둔 채 자정을 넘기면 어제 운세가 그대로 남는다.
@@ -1330,6 +1480,7 @@
     mountGate();
     bind();
     wireTabs();
+    wireGuide();
     observeVideos();
 
     // 친구가 보낸 링크로 들어왔다면 그 유형을 먼저 보여준다.
@@ -1346,9 +1497,11 @@
       cast({ silent: true }).then(() => {
         if (!rp) return;
         $('resume-bar').classList.remove('hidden');
-        // 저장된 명식이 되살아났다는 건 전에 왔던 사람이라는 뜻이다.
-        // 다시 온 이유는 오늘 하나뿐이니 오늘 탭으로 연다.
-        showTab('today', { keepScroll: true, force: true });
+        /* 명식이 되살아났다고 해서 안내를 다 본 사람은 아니다.
+           생년월일은 안내가 끝나기 전에 이미 저장되기 때문이다.
+           안내 도중 창을 닫은 사람은 여기서 다시 안내를 받아야 한다 — cast() 가 그렇게 한다.
+           이미 다 본 사람만 오늘 탭으로 연다. */
+        if (guideDone()) showTab('today', { keepScroll: true, force: true });
       });
     }
   }
