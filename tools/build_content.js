@@ -469,6 +469,48 @@ function main() {
       void k;
     }
     if (baked) console.warn(`  ! 긴 글 ${baked}장이 {물상} 슬롯 대신 물상을 본문에 박아뒀다`);
+
+    /* ── 유료분을 따로 뺀다 ─────────────────────────────
+       지금은 잠긴 문단이 content.js 안에 그대로 실려 브라우저로 내려간다.
+       화면에서는 막대로 가리지만 파일을 열면 다 읽힌다. 라이브에서 확인했다.
+
+       **분명히 해둔다. 파일을 나누는 것은 보안이 아니다.**
+       나눠도 주소만 알면 누구나 받을 수 있다.
+       이건 결제를 붙일 때 유료분을 서버 쪽으로 옮기기 **쉽게 해두는 준비**다 —
+       그때 이 파일 하나를 인증이 걸린 함수 응답으로 갈아 끼우면 된다.
+       코덱스와 (b) 로 합의한 자리다.
+
+       나누고 나면 처음 받는 파일이 그만큼 가벼워지는 이득도 있다. */
+    const paid = { natures: {}, today: {}, daeun: {}, wealth: {}, work: {} };
+    let moved = 0, movedBytes = 0;
+    for (const box of Object.keys(paid)) {
+      for (const [k, ch] of Object.entries(db.longform[box] || {})) {
+        const cut = ch.cutAt || 2;
+        const rest = (ch.paras || []).slice(cut);
+        if (!rest.length) continue;
+        paid[box][k] = rest;
+        moved += rest.length;
+        movedBytes += rest.join('').length;
+        // 무료 파일에는 **글자를 남기지 않는다.** 길이만 남겨 가림 막대를 그린다.
+        ch.paras = ch.paras.slice(0, cut);
+        ch.hidden = rest.map((p) => p.length);
+      }
+    }
+    // 조건 문단도 유료다 — 본문 뒤에 붙는 것도 결국 가려지는 자리다.
+    if (db.longform.wealthAddons) {
+      paid.wealthAddons = db.longform.wealthAddons;
+      delete db.longform.wealthAddons;
+    }
+
+    const PAID_OUT = path.join(ROOT, 'js', 'content-paid.js');
+    fs.writeFileSync(PAID_OUT,
+      '/* 자동 생성 — tools/build_content.js 가 만든다. 손으로 고치지 마라.\n'
+      + '   구독한 사람에게만 내려가는 문단들이다.\n'
+      + '   지금은 정적 파일이라 주소만 알면 받을 수 있다. 이건 보안이 아니라\n'
+      + '   결제를 붙일 때 서버 함수로 갈아 끼우기 쉽게 해둔 자리다. */\n'
+      + 'const ContentPaid = ' + JSON.stringify(paid, null, 1)
+      + ';\n\nif (typeof module !== \'undefined\') module.exports = ContentPaid;\n', 'utf8');
+    console.log(`  유료분 분리 — 문단 ${moved}개 ${(movedBytes / 1024).toFixed(0)}KB → js/content-paid.js`);
   }
 
   /* ── 검산 ── */

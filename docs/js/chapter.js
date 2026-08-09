@@ -55,7 +55,10 @@ const Chapter = (() => {
      한 줄에 26자로 끊는 건 화면 폭에서 대충 그쯤 들어가기 때문이다.
      마지막 줄은 짧게 둬야 문단처럼 보인다. */
   function veilPara(text) {
-    const n = [...String(text || '')].length;
+    // 글자를 받으면 그 길이로, {len} 만 받으면 그 수로 막대를 그린다.
+    // 잠긴 문단은 글자가 아예 없이 길이만 내려온다.
+    const n = (text && typeof text === 'object' && typeof text.len === 'number')
+      ? text.len : [...String(text || '')].length;
     const rows = [];
     let left = Math.max(12, Math.min(240, n));
     while (left > 0) { rows.push(Math.min(left, 26)); left -= 26; }
@@ -75,8 +78,31 @@ const Chapter = (() => {
   function render(ch, opts = {}) {
     if (!ch) return '';
     const v = opts.values || {};
-    const paras = Array.isArray(ch.paras) ? ch.paras : [];
-    const cut = opts.open ? paras.length : Math.max(1, Math.min(paras.length, ch.cutAt || 2));
+
+    /* 잠긴 문단은 이 파일에 글자가 없다. 길이(ch.hidden)만 있다.
+       구독한 사람에게는 js/content-paid.js 가 따로 내려오고, 부르는 쪽이 opts.paid 로 넘긴다.
+       못 받았으면 길이만으로 막대를 그린다 — 글자가 없으니 개발자도구로도 못 읽는다.
+
+       다만 분명히 해둔다. 지금 유료 파일은 정적이라 **주소만 알면 누구나 받는다.**
+       이건 보안이 아니라 결제를 붙일 때 서버로 옮기기 쉽게 해둔 구조다. */
+    const open = !!opts.open;
+    const all = Array.isArray(ch.paras) ? ch.paras : [];
+    const lens = Array.isArray(ch.hidden) ? ch.hidden : [];
+
+    let paras, cut;
+    if (lens.length) {
+      /* 나눈 판 — 무료 문단만 들어 있고 잠긴 자리는 길이(hidden)만 있다.
+         구독한 사람에게는 content-paid.js 가 따로 내려오고 opts.paid 로 들어온다. */
+      const rest = open && Array.isArray(opts.paid) && opts.paid.length
+        ? opts.paid : lens.map((n) => ({ len: n }));
+      paras = all.concat(rest);
+      cut = open && Array.isArray(opts.paid) && opts.paid.length ? paras.length : all.length;
+    } else {
+      /* 안 나눈 판 — 한 배열에 다 들어 있고 cutAt 에서 자른다.
+         유료분을 아직 안 뺀 묶음(챕터 12장 등)이 이 길로 온다. */
+      paras = all;
+      cut = open ? all.length : Math.max(1, Math.min(all.length, ch.cutAt || 2));
+    }
 
     const out = ['<article class="cp">'];
     if (ch.title) out.push(`<h4 class="cp-t">${bold(fill(ch.title, v))}</h4>`);
@@ -84,8 +110,8 @@ const Chapter = (() => {
 
     out.push('<div class="cp-body">');
     paras.forEach((p, i) => {
-      const t = fill(p, v);
-      out.push(i < cut ? `<p>${bold(t)}</p>` : veilPara(t));
+      if (i >= cut) { out.push(veilPara(p)); return; }
+      out.push(`<p>${bold(fill(p, v))}</p>`);
     });
     out.push('</div>');
 

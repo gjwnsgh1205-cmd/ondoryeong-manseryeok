@@ -92,14 +92,18 @@ async function main() {
   if (cmd === 'gen') {
     const [imageUrl, prompt, sec, name] = rest;
     if (!imageUrl || !prompt) { console.error('gen <이미지URL> "<프롬프트>" [초] [이름]'); process.exit(1); }
+    /* 모델 이름은 list_models 가 주는 service_name 그대로다("Seedance 2.0").
+       mini 는 모델이 아니라 **티어**다 — 'seedance-2.0-mini' 로 부르면
+       "Unknown model" 이 돌아온다. 한 번 걸렸다.
+       mini 720p 는 초당 2크레딧이라 5초에 10크레딧이다. */
     const r = await call('generate_video', {
-      model: 'seedance-2.0-mini',
+      model: 'Seedance 2.0',
+      tier: 'mini',
       prompt,
       duration: Number(sec) || 5,
-      resolution: '720p',
+      quality: '720p',
       aspect_ratio: '9:16',
       image_urls: [imageUrl],
-      tier: 'mini',
     });
     console.log(JSON.stringify({ name: name || '', started: r }, null, 1));
     return;

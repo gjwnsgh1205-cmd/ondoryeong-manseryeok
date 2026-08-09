@@ -35,6 +35,35 @@
   const CP = typeof Chapter !== 'undefined' ? Chapter : null;
   const J = typeof Josa !== 'undefined' ? Josa : null;
 
+  /* ── 유료분 ───────────────────────────────────────────
+     잠긴 문단은 content.js 에 글자가 없다. 길이만 있다.
+     구독한 사람일 때만 js/content-paid.js 를 따로 받아 온다.
+
+     **분명히 해둔다. 이건 보안이 아니다.** 정적 파일이라 주소만 알면 누구나 받는다.
+     결제를 붙일 때 이 함수 하나를 인증이 걸린 서버 응답으로 갈아 끼우면 되게
+     구조만 잡아둔 것이다. 코덱스와 그렇게 합의했다.
+
+     못 받아도 화면은 안 빈다 — 무료 문단은 그대로 나오고 나머지는 막대로 남는다. */
+  let paidPack = null;
+  let paidTried = false;
+  function loadPaid() {
+    if (paidTried || !opened()) return Promise.resolve(null);
+    paidTried = true;
+    if (typeof ContentPaid !== 'undefined') { paidPack = ContentPaid; return Promise.resolve(paidPack); }
+    return new Promise((done) => {
+      const s = document.createElement('script');
+      s.src = 'js/content-paid.js';
+      s.onload = () => {
+        paidPack = (typeof ContentPaid !== 'undefined') ? ContentPaid : null;
+        done(paidPack);
+      };
+      s.onerror = () => { paidTried = false; done(null); };  // 다음에 다시 해본다
+      document.head.appendChild(s);
+    });
+  }
+  // 이 장의 잠긴 문단들. 아직 못 받았으면 빈 배열이라 막대가 그대로 남는다.
+  const paidFor = (box, key) => (paidPack && paidPack[box] && paidPack[box][key]) || [];
+
   /* 긴 글은 "{이름}님은 지금 …" 으로 열린다.
      지금은 이름을 안 받는다. 빈 값이면 Chapter 가 그 덩어리째 지우고
      "지금 …" 으로 시작하게 만든다 — "님은 지금" 이 남지 않게.
@@ -445,6 +474,7 @@
 
     if (CP && t.chapter) {
       $('nature').innerHTML = CP.render(t.chapter, {
+        paid: paidFor('natures', t.stem + t.season),
         open: opened(),
         values: { 물상: t.noun, 이름: readerName() },
         cta: `<button type="button" class="td-open" data-open="1">${
@@ -662,6 +692,7 @@
     const box = $('daeun-read');
     if (!box) return;
     box.innerHTML = (CP && p.chapter) ? CP.render(p.chapter, {
+      paid: paidFor('daeun', p.group + '-' + p.tone),
       open: opened(),
       // "경술(庚戌)" 꼴. 조사는 한글 쪽 소리로 붙는다 — josa.js 가 괄호를 떼고 본다.
       values: { 물상: rp.type.noun, 이름: readerName(), 대운간지: `${p.ganji}(${p.han})` },
@@ -890,7 +921,7 @@
 
      조건 문단(feeds/contest/strong/weak)은 본문 뒤에 얹는다.
      해당하는 사람에게만 나가야 해서 본문에 넣을 수 없다. */
-  function renderReading(boxId, ch, addons, basis) {
+  function renderReading(boxId, ch, addons, basis, box2, key) {
     const box = $(boxId);
     if (!box) return;
     if (!CP || !ch) { box.innerHTML = ''; return; }
@@ -899,6 +930,7 @@
       .map((t) => `<p>${CP.bold(t)}</p>`).join('');
 
     box.innerHTML = CP.render(ch, {
+      paid: key ? paidFor(box2, key) : [],
       open: opened(),
       values: { 이름: readerName() },
       cta: `<button type="button" class="td-open" data-open="1">${
@@ -914,12 +946,12 @@
     const lf = c && c.longform;
     const w = rp.wealth;
     if (!lf || !lf.wealth || !w) { $('wealth').innerHTML = ''; return; }
-    const a = lf.wealthAddons || {};
+    const a = (paidPack && paidPack.wealthAddons) || lf.wealthAddons || {};
     renderReading('wealth', lf.wealth[w.key], [
       w.feeds ? a.feeds : null,
       w.contest ? a.contest : null,
       w.strength === '신강' ? a.strong : w.strength === '신약' ? a.weak : null,
-    ], a.basis);
+    ], a.basis, 'wealth', w.key);
   }
 
   function renderWork() {
@@ -927,7 +959,7 @@
     const lf = c && c.longform;
     const k = rp.work;
     if (!lf || !lf.work || !k) { $('work').innerHTML = ''; return; }
-    renderReading('work', lf.work[k.key], [], '');
+    renderReading('work', lf.work[k.key], [], '', 'work', k.key);
   }
 
   /* ── 상담 초대 ───────────────────────────────────────── */
@@ -1003,10 +1035,12 @@
      ══════════════════════════════════════════════════════ */
   const GUIDE_DONE = 'ondoryeong.guide.v1';
   const STEPS = [
-    { tab: 'nature', say: '먼저 타고난 성격부터 보겠네.' },
-    { tab: 'saju', say: '사주팔자도 소개해 주지. 여덟 글자가 이렇게 서 있네.' },
-    { tab: 'flow', say: '인생 흐름은 이렇다네. 열 해마다 바람이 갈리지.' },
-    { tab: 'today', say: '그리고 오늘. 여긴 날마다 바뀌니 내일 또 오시게.' },
+    /* kind 는 도령의 몸짓이다. 탭 이름이 아니라 몸짓으로 붙였다 —
+       나중에 탭 순서를 바꿔도 이름이 안 어긋난다. */
+    { tab: 'nature', kind: 'tell', say: '먼저 타고난 성격부터 보겠네.' },
+    { tab: 'saju', kind: 'point', say: '사주팔자도 소개해 주지. 여덟 글자가 이렇게 서 있네.' },
+    { tab: 'flow', kind: 'lift', say: '인생 흐름은 이렇다네. 열 해마다 바람이 갈리지.' },
+    { tab: 'today', kind: 'bow', say: '그리고 오늘. 여긴 날마다 바뀌니 내일 또 오시게.' },
   ];
   let step = -1;
 
@@ -1028,9 +1062,8 @@
     window.scrollTo({ top: 0, behavior: 'instant' });
     // 도령이 매 걸음 인사한다. 마지막 걸음만 절하는 영상으로 바꿔 끝을 알린다.
     if (DR) {
-      $('dr-guide').innerHTML = DR.media({
-        kind: step === STEPS.length - 1 ? 'bow' : 'idle', loop: false, label: '',
-      });
+      // 걸음마다 다른 몸짓이다. 같은 영상을 네 번 돌리면 넘기는 맛이 안 산다.
+      $('dr-guide').innerHTML = DR.media({ kind: s.kind || 'idle', loop: false, label: '' });
       playIn($('dr-guide'));
     }
   }
@@ -1385,10 +1418,13 @@
     $('btn-unlock').addEventListener('click', () => {
       ent.sub = !ent.sub;            // 결제가 붙기 전까지는 그냥 켜고 끈다
       saveEnt();
-      rp = Report.build(chart, { unlocked: opened() });
-      renderReport();
-      const bar = $('tabs');
-      if (bar) window.scrollTo({ top: Math.max(0, bar.offsetTop - bar.offsetHeight - 8), behavior: 'smooth' });
+      // 켤 때 유료 문단을 받아 온다. 다 받고 나서 그려야 막대가 글로 바뀐다.
+      loadPaid().then(() => {
+        rp = Report.build(chart, { unlocked: opened() });
+        renderReport();
+        const bar = $('tabs');
+        if (bar) window.scrollTo({ top: Math.max(0, bar.offsetTop - bar.offsetHeight - 8), behavior: 'smooth' });
+      });
     });
 
     /* 가려진 자리를 여는 단추(.td-open)는 글 안에서 만들어진다.
@@ -1477,6 +1513,8 @@
     if (typeof Manse === 'undefined') return;
     if (window.Astronomy && Manse.setAstro) Manse.setAstro(window.Astronomy);
     loadEnt();          // 구독·단건 상태를 되살린다. 이게 없으면 새로고침마다 다시 잠긴다.
+    // 이미 구독 중인 채로 들어온 사람. 받아 두면 첫 그리기부터 글이 나온다.
+    if (opened()) loadPaid();
     mountGate();
     bind();
     wireTabs();
