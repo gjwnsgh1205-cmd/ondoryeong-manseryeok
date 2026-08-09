@@ -18,6 +18,21 @@
 <meta property="og:image:width" content="520">
 <meta property="og:image:height" content="1054">
 <meta name="twitter:card" content="summary_large_image">
+<!-- 서체를 실제로 싣는다.
+
+     이걸 안 싣고 있었다. CSS 에 'Nanum Myeongjo' 와 'Pretendard' 를 적어뒀지만
+     @font-face 도 링크도 없어서, 그 글꼴이 깔린 기기에서만 보였다.
+     재보니 명조 347px / 기본 serif 347px — **똑같았다.**
+     "제목만 명조" 라는 설계가 대부분의 방문자에게는 아예 없던 셈이다.
+
+     Pretendard 는 동적 서브셋이라 실제로 쓰인 글자만 받아온다(보통 30~40KB).
+     둘 다 swap 이라 글꼴이 늦게 와도 글은 바로 읽힌다. -->
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet"
+      href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.css">
+<link rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Nanum+Myeongjo:wght@400;700&display=swap">
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>

@@ -782,16 +782,22 @@
           p.why ? `<i>${esc(p.why)}</i>` : ''}</span>
       </div>`;
     };
+    /* 숫자를 앞세우지 않는다.
+       우리 눈금에서 50은 한가운데인데, 100점 만점에 50점은 낙제로 읽힌다.
+       1,825일을 실측해 잡은 구간(10/18/47/15/9%)은 그대로 쓰되,
+       **화면에는 구간 이름을 내고 원점수는 근거 안에서만 보여준다.**
+       점수를 올려 대부분을 60~90에 오게 하는 건 데이터가 아니라 불안을 보정하는 짓이다. */
     return `<div class="score">
       <div class="sc-head">
-        <span class="sc-num">${s.score}</span>
-        <span class="sc-band">${esc(s.band)}</span>
+        <span class="sc-band-big">${esc(s.band)}</span>
+        <span class="sc-sub">오늘의 흐름</span>
       </div>
       <details class="sc-why">
-        <summary>왜 ${s.score}점인가요?</summary>
+        <summary>어떻게 잰 건가요?</summary>
         <div class="sc-body">
           <div class="sc-row sc-base"><span class="sc-d">${s.base}</span><span class="sc-t"><b>기준점</b>여기서 더하고 뺍니다</span></div>
           ${s.parts.map(row).join('')}
+          <div class="sc-row sc-total"><span class="sc-d">${s.score}</span><span class="sc-t"><b>합계</b>1,825일을 재서 다섯 구간으로 나눴어요</span></div>
           <p class="sc-note">${esc(s.weightNote)}</p>
           <p class="sc-note">${esc(s.strengthNote)}</p>
         </div>
@@ -814,7 +820,7 @@
       <div class="wk-bars">${w.days.map((d) => `
         <div class="wk-day${d.isToday ? ' is-today' : ''}">
           <span class="wk-bar" style="height:${H(d.score)}%"></span>
-          <span class="wk-n">${opened() || d.isToday ? d.score : ''}</span>
+          <span class="wk-n">${d.isToday ? '오늘' : ''}</span>
           <span class="wk-w">${esc(d.weekday)}</span>
         </div>`).join('')}</div>
       ${opened() ? '' : '<p class="wk-lock">이레치 점수는 구독하면 전부 보여요</p>'}
@@ -921,21 +927,54 @@
      탭을 넣으면서 죽었다(숨은 탭을 가리켜 눌러도 아무 일이 없었다).
      목록을 걷어내고, 값은 화면 아래 한 줄로 눕혔다.
      가려진 글은 이제 각 탭 안에서 제자리에 가려진다 — 목록으로 셀 필요가 없다. */
-  function renderPaybar() {
+  /* ── 값 ───────────────────────────────────────────────
+     예전엔 결과가 뜨자마자 아래에 금색 바가 붙었다.
+     값어치를 느끼기 전에 가격부터 각인시키는 셈이었다.
+
+     이제는 **가려진 자리가 실제로 화면에 들어올 때** 올라온다.
+     "더 읽고 싶은데 비어 있다" 를 느끼는 그 순간이 파는 자리다.
+     몇 초 뒤·몇 픽셀 뒤 같은 규칙은 읽는 속도마다 달라 자의적이다.
+
+     한 번 올라오면 그 판을 보는 동안은 내려가지 않는다.
+     스크롤할 때마다 오르내리면 그게 더 성가시다. */
+  let payIO = null;
+  let paySeen = false;
+
+  function watchVeils() {
+    if (payIO) payIO.disconnect();
+    paySeen = false;
     const bar = $('paybar');
     if (!bar) return;
-    bar.classList.toggle('hidden', opened());
-    if (opened()) return;
+    if (opened()) { bar.classList.add('hidden'); return; }
+    bar.classList.add('hidden');
 
-    // 지금 이 탭에서 가려진 게 몇 군데인지 세어 문구에 담는다.
-    // "가려진 게 있다" 를 숫자로 보여주면 막연한 광고보다 덜 미덥잖다.
+    const targets = document.querySelectorAll(
+      '.pane:not([hidden]) .cp-veil, .pane:not([hidden]) .veiled, .pane:not([hidden]) .cp-more');
+    if (!targets.length) return;
+
+    if (!('IntersectionObserver' in window)) { showPaybar(); return; }
+    payIO = new IntersectionObserver((rows) => {
+      if (paySeen) return;
+      if (rows.some((r) => r.isIntersecting)) { showPaybar(); payIO.disconnect(); }
+    }, { rootMargin: '0px 0px -12% 0px' });
+    targets.forEach((t) => payIO.observe(t));
+  }
+
+  function showPaybar() {
+    paySeen = true;
+    const bar = $('paybar');
+    if (!bar || opened()) return;
+    // 지금 이 판에서 가려진 게 몇 군데인지 세어 문구에 담는다.
+    // 막연한 광고보다 숫자가 미덥다.
     const n = document.querySelectorAll('.pane:not([hidden]) .cp-veil, .pane:not([hidden]) .veiled').length;
     // 390px 한 줄에 들어가야 한다. 길면 두 줄로 접혀 바가 두꺼워진다.
     $('paybar-lead').textContent = n ? `가려진 ${n}곳 열기` : '전체 풀이 열기';
     $('unlock-price').textContent = SUB_PRICE.toLocaleString('ko-KR') + '원';
-    $('unlock-note').textContent =
-      '결제는 아직 붙이는 중이라 지금은 눌러도 그냥 열려요.';
+    $('unlock-note').textContent = '결제는 아직 붙이는 중이라 지금은 눌러도 그냥 열려요.';
+    bar.classList.remove('hidden');
   }
+
+  function renderPaybar() { watchVeils(); }
 
   /* ── 재물 · 일 ─────────────────────────────────────────
      사용자가 "재물이야기나 사주팔자의 해석을 좀 더 구체적으로" 라고 한 자리다.

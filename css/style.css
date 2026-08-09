@@ -51,7 +51,7 @@
   --warn: #9E5E29;
 
   --serif: 'Nanum Myeongjo', 'AppleMyungjo', Batang, '바탕', 'Songti SC', 'Noto Serif KR', serif;
-  --sans: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo',
+  --sans: 'Pretendard Variable', 'Pretendard', -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo',
           'Malgun Gothic', '맑은 고딕', system-ui, sans-serif;
 
   --wrap: 34rem;
@@ -658,10 +658,13 @@ input, textarea { font: inherit; color: inherit; }
 .td-flow {
   display: grid; gap: .5rem;
   padding: .85rem .95rem; border-radius: 11px;
-  background: linear-gradient(140deg, var(--ink-1), rgba(7,10,18,.5));
+  /* 흰 판으로 옮길 때 못 잡은 자리. 어두운 그라데이션이 남아 회색 상자로 떴다.
+     카드 안의 칸이니 한 겹만 눌러 준다. */
+  background: var(--ink-3);
   border: 1px solid var(--line-soft);
 }
-.tf-label { font-style: normal; font-size: .68rem; letter-spacing: .14em; color: var(--paper-far); }
+/* 이 칸은 배경이 한 겹 눌려 있어(--ink-3) --paper-far 로는 4.1:1 이다 */
+.tf-label { font-style: normal; font-size: .68rem; letter-spacing: .14em; color: var(--paper-dim); }
 .tf-tags { display: flex; flex-wrap: wrap; gap: .3rem; }
 .tf-tag {
   padding: .2rem .55rem; border-radius: 999px;
@@ -1469,3 +1472,68 @@ body.is-guiding .paybar { display: none; }
   left: .9rem; right: auto;
   letter-spacing: .08em;
 }
+
+/* ══════════════════════════════════════════════════════
+   색 위계를 다시 잡는다
+
+   카드·입력칸·탭·결제바가 전부 크림색이라 **위계가 색으로 안 잡혔다.**
+   어디가 중요한지 눈이 못 골랐다.
+
+   코덱스와 이렇게 합의했다 —
+     바탕·입력칸·탭    흰색      화면의 바닥
+     읽는 글 카드       크림      여기만 종이다. 그림자로 띄운다
+     카드 안의 칸       한 겹 아래
+   금색은 한 화면에 **같은 역할로 두 번 나오지 않게** 한다.
+   변수 다섯을 당장 합치는 것보다 이게 먼저다.
+   ══════════════════════════════════════════════════════ */
+
+/* 입력 카드는 종이가 아니라 도구다. 흰색으로 올린다. */
+.gate-form {
+  background: #FFFFFF;
+  border-color: var(--line-soft);
+  box-shadow: 0 .6rem 1.6rem rgba(94,74,34,.07), 0 1px 2px rgba(26,29,38,.04);
+}
+.fld input, .cal-seg, .sex-seg {
+  background: #FDFCFA;
+  border-color: rgba(26,29,38,.10);
+}
+
+/* 탭 막대도 흰색. 여기가 크림이면 아래 카드와 붙어 보인다. */
+.tabs { background: rgba(255,255,255,.94); }
+
+/* 읽는 글만 종이다. 한 화면에서 크림은 여기뿐이라 눈이 바로 여기로 온다. */
+.cp, .wealth .cp, .work .cp,
+#hiddenFace .cp, #firstLook .cp, #beside .cp,
+#friction .cp, #turning .cp, #yearWork .cp {
+  background: var(--ink-2);
+  border: 1px solid var(--line-soft);
+  border-radius: 14px;
+  padding: 1.5rem 1.25rem;
+  box-shadow: 0 .5rem 1.4rem rgba(94,74,34,.06);
+}
+/* 카드가 됐으니 덩이 사이 선은 필요 없다. 오히려 겹쳐 보인다. */
+.pane > .rp-sec ~ .rp-sec { border-top: 0; padding-top: 0; }
+.pane { gap: 1.6rem; }
+
+/* 결제 바 — 금색은 단추 하나에만. 바탕까지 금빛이면 화면이 팔려고만 든다. */
+.paybar { background: rgba(255,255,255,.96); }
+
+/* 오늘 카드도 같은 종이 위에 */
+.today { background: var(--ink-2); border: 1px solid var(--line-soft);
+         border-radius: 14px; padding: 1.4rem 1.15rem;
+         box-shadow: 0 .5rem 1.4rem rgba(94,74,34,.06); }
+
+/* 오늘의 흐름 — 숫자 대신 구간 이름을 앞세운다.
+   우리 눈금에서 50은 한가운데인데 100점 만점에 50점은 낙제로 읽힌다.
+   실측 구간(1,825일, 10/18/47/15/9%)은 그대로 쓰고 표시만 바꿨다. */
+.sc-head { display: grid; gap: .1rem; }
+.sc-band-big {
+  font-family: var(--serif);
+  font-size: 1.9rem; line-height: 1.25;
+  color: var(--paper);
+  letter-spacing: -0.02em;
+}
+.sc-sub { font-size: .76rem; letter-spacing: .14em; color: var(--paper-far); }
+/* 원점수는 근거를 펼쳤을 때만 나온다 */
+.sc-total { border-top: 1px solid var(--line); padding-top: .5rem; margin-top: .2rem; }
+.sc-total .sc-d { color: var(--paper); font-weight: 600; }
