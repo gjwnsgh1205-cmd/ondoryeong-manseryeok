@@ -16,7 +16,10 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 DIST = ROOT / "docs"
 
-REQUIRED_FILES = ["index.html", "deep.html"]
+# deep.html 이 여기 같이 있었다. 19,800원짜리 심층 풀이 상세페이지였는데,
+# 값을 한 번 4,900원 하나로 합치면서 파는 물건이 아니게 되어 지웠다.
+# 필수 목록에 남겨두면 빌드가 "필수 입력 없음" 으로 멈춘다.
+REQUIRED_FILES = ["index.html"]
 OPTIONAL_FILES = ["README.md"]
 DIRS = ["css", "js", "assets/web", "assets/video"]
 

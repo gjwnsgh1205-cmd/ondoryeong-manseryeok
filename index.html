@@ -216,6 +216,8 @@
     <section class="rp-sec reveal" id="sec-beside"><div id="beside"></div></section>
     <!-- 부딪힐 때 늘 비슷한 자리에서 난다 -->
     <section class="rp-sec reveal" id="sec-friction"><div id="friction"></div></section>
+    <!-- 광고. 글이 다 끝난 뒤에만 붙인다 — 문단 사이에 끼우지 않는다(js/ads.js) -->
+    <div class="adslot" data-ad="nature-foot"><span class="adslot-tag">광고</span></div>
   </div>
 
   <!-- ── 사주팔자 ── -->
@@ -245,6 +247,7 @@
     </section>
     <!-- 올해 일 쪽에 들어온 기운. 해가 바뀌면 통째로 바뀐다 -->
     <section class="rp-sec reveal" id="sec-yearwork"><div id="yearWork"></div></section>
+    <div class="adslot" data-ad="saju-foot"><span class="adslot-tag">광고</span></div>
   </div>
 
   <!-- ── 인생 흐름 ── -->
@@ -261,6 +264,7 @@
     </section>
     <!-- 지금 십 년이 끝나고 다음 기운이 들어오는 때 -->
     <section class="rp-sec reveal" id="sec-turning"><div id="turning"></div></section>
+    <div class="adslot" data-ad="flow-foot"><span class="adslot-tag">광고</span></div>
   </div>
 
   <!-- ── 오늘의 운수 ── -->
@@ -304,15 +308,16 @@
 <div class="paybar hidden" id="paybar">
   <button type="button" id="btn-unlock" class="paybar-btn">
     <span class="paybar-lead" id="paybar-lead">가려진 곳까지 전부 열기</span>
-    <span class="paybar-price">달마다 <b id="unlock-price">4,900원</b></span>
+    <span class="paybar-price">한 번만 <b id="unlock-price">4,900원</b></span>
   </button>
   <p class="paybar-note" id="unlock-note"></p>
 </div>
 
 
 <!-- ════════════════════════════════════════════════════════
-     내 상황 — 19,800원짜리 풀이를 쓰기 위해 묻는 여덟 가지.
+     내 상황 — 값을 치른 사람의 풀이를 쓰기 위해 묻는 여덟 가지.
      무료 구간은 명식만으로 되지만, 여기부터는 사람 이야기가 있어야 쓸 수 있다.
+     따로 19,800원을 받던 자리였는데, 값을 한 번 4,900원으로 합치면서 같은 열쇠를 쓴다.
      ════════════════════════════════════════════════════════ -->
 <section id="step-situation" class="situation hidden" aria-labelledby="sit-title">
   <header class="sit-top">
@@ -354,7 +359,8 @@
 
   <div id="pass-box" class="pass-box hidden">
     <p id="pass-copy"></p>
-    <button id="btn-pass" class="btn-unlock">상담권으로 이어 묻기 · 4,900원</button>
+    <!-- 문구는 app.js 의 syncTurns() 가 갈아 끼운다. 이미 연 사람에겐 값을 안 적는다. -->
+    <button id="btn-pass" class="btn-unlock">가려진 글까지 열고 이어 묻기 · 한 번 4,900원</button>
     <p class="unlock-note" id="pass-note"></p>
   </div>
 
@@ -389,6 +395,7 @@
 <script src="js/share.js"></script>
 <script src="js/consult.js"></script>
 <script src="js/sky.js"></script>
+<script src="js/ads.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>

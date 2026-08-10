@@ -525,7 +525,10 @@ function main() {
        코덱스와 (b) 로 합의한 자리다.
 
        나누고 나면 처음 받는 파일이 그만큼 가벼워지는 이득도 있다. */
-    const paid = { natures: {}, today: {}, daeun: {}, wealth: {}, work: {},
+    /* **today 는 여기 없다.** 오늘의 운수는 값을 받지 않는다.
+       매일 여는 화면이 미끼다 — 날마다 와서 다 읽고 가게 두고, 값은 한 번만 받는다.
+       그래서 오늘 장 10편은 통째로 무료 파일에 남는다. */
+    const paid = { natures: {}, daeun: {}, wealth: {}, work: {},
                    hiddenFace: {}, firstLook: {}, beside: {}, friction: {}, turning: {}, yearWork: {} };
     let moved = 0, movedBytes = 0;
     for (const box of Object.keys(paid)) {
