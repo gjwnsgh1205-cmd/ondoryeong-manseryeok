@@ -278,10 +278,68 @@ input, textarea { font: inherit; color: inherit; }
   backdrop-filter: blur(6px);
   animation: fade .3s var(--ease);
 }
-.veil-inner { display: grid; gap: 1.2rem; justify-items: center; text-align: center; }
+/* 도령과 명경 사이를 좁힌다. 벌어져 있으면 그림 하나 + 상자 하나로 따로 읽힌다. */
+.veil-inner { display: grid; gap: .7rem; justify-items: center; text-align: center; }
 .dr-veil { width: 6.5rem; }
 .veil-text { font-family: var(--serif); font-size: 1.05rem; color: var(--gold-ink); }
 @keyframes fade { from { opacity: 0 } to { opacity: 1 } }
+
+/* ── 진행 바 ───────────────────────────────────────────
+   맨 위 한 줄. 남은 시간을 숫자로 세지 않는다 — 세면 기다림이 길어진다.
+   너비 하나를 total 만큼 걸어두고 브라우저에 맡긴다. */
+.veil-bar {
+  position: fixed; top: 0; left: 0; right: 0; height: 2px;
+  background: var(--line-soft);
+}
+.veil-bar i {
+  display: block; height: 100%; width: 0;
+  background: linear-gradient(90deg, var(--gold-lit), var(--gold));
+}
+
+/* ── 명경(明鏡) ─────────────────────────────────────────
+   도령이 든 거울. 글자는 여기 안에서만 뜬다.
+   화면 한복판에 글자만 떠 있으면 그냥 로딩 자막인데,
+   테를 두르면 도령이 들고 있는 물건이 된다. 같은 글자라도 장면 안으로 들어온다. */
+.mirror {
+  position: relative;
+  /* 19rem/84vw 로 뒀다가 줄였다. 글자에 비해 너무 넓어 접시처럼 보였다.
+     둥글기도 34% 에서 올렸다 — 납작하면 거울이 아니라 쟁반이다. */
+  width: min(16rem, 78vw);
+  padding: 1.7rem 1.3rem 1.6rem;
+  display: grid; gap: .95rem; justify-items: center;
+  border-radius: 50% / 42%;
+  border: 1px solid var(--line);
+  background:
+    radial-gradient(120% 90% at 50% 30%, rgba(198,161,91,.10), transparent 62%),
+    var(--ink-1);
+  box-shadow: 0 .5rem 1.4rem rgba(94,74,34,.10), inset 0 0 0 4px rgba(255,255,255,.7);
+}
+
+/* 이름이 뜨는 줄만 크게. 이름은 자막이 아니라 새김이다 —
+   본문과 같은 크기로 지나가면 그냥 로딩 문구 한 줄이 된다. */
+.veil-text.is-name {
+  font-size: 1.65rem; letter-spacing: .1em;
+  color: var(--gold-on-tint);
+}
+
+/* 여덟 글자가 새겨지는 칸. 천간 위 지지 아래 — 곧 볼 명식표와 같은 배열이다. */
+.carve { display: flex; gap: .55rem; justify-content: center; }
+.carve-col { display: grid; gap: .3rem; }
+.carve b {
+  display: grid; place-items: center;
+  width: 1.9rem; height: 1.9rem;
+  font-family: var(--serif); font-size: 1.05rem; font-weight: 400;
+  color: var(--gold-on-tint);
+  background: var(--ink-3);
+  border-radius: 6px;
+  /* 새겨지기 전에는 없다. --d 만큼 기다렸다 하나씩 들어온다. */
+  opacity: 0;
+  animation: carveIn .5s var(--ease) var(--d, 0ms) both;
+}
+@keyframes carveIn {
+  from { opacity: 0; transform: scale(.82); filter: blur(3px); }
+  to   { opacity: 1; transform: none; filter: none; }
+}
 
 /* ══════════════════════════════════════════════════════
    풀이
@@ -549,7 +607,10 @@ input, textarea { font: inherit; color: inherit; }
   margin-left: auto; align-self: flex-start; flex: none;
   padding: .2rem .6rem; border-radius: 999px;
   font-size: .72rem; white-space: nowrap;
-  border: 1px solid var(--line); color: var(--gold-ink);
+  /* --gold-ink 를 쓰다가 --gold-on-tint 로 내렸다. 이 딱지는 금색 반투명 위에 얹혀서
+     실제 배경이 #EDE3CE 까지 올라간다 — 거기서 --gold-ink 는 4.01:1 로 AA 미달이었다.
+     --gold-on-tint 는 애초에 그런 자리를 위해 만든 색이다. */
+  border: 1px solid var(--line); color: var(--gold-on-tint);
   background: rgba(198,161,91,.18);
 }
 .td-kind-충 { border-color: rgba(151,95,82,.45); color: #975F52; background: rgba(208,96,76,.10); }
@@ -651,7 +712,7 @@ input, textarea { font: inherit; color: inherit; }
 .wk-day.is-today .wk-n { color: var(--gold-ink); }
 .wk-w { font-size: .7rem; color: var(--paper-far); }
 .wk-day.is-today .wk-w { color: var(--paper); }
-.wk-lock { font-size: .74rem; color: var(--paper-far); text-align: center; }
+/* .wk-lock 은 이레치 점수를 구독으로 가리던 줄이다. 오늘 탭이 무료가 되며 없앴다. */
 
 /* 지금 어디쯤인가 — 대운(10년) · 올해 · 이번 달을 오늘 위에 얹는 칸.
    이 축이 없으면 하루가 일진 하나로만 정해져 60일마다 똑같이 돌아온다. */
@@ -1085,6 +1146,12 @@ a.ch-item { text-decoration: none; color: inherit; }
   .reveal { opacity: 1; transform: none; transition: none; }
   .btn-cast, .ch-item, .btn-unlock, .btn-send, .chip { transition: none; }
 
+  /* 명경 — 새기는 맛보다 읽히는 게 먼저다.
+     글자는 다 보여주되 하나씩 튀어나오지 않게 한다.
+     진행 바도 채워지긴 해야 한다(안 채우면 멈춘 걸로 보인다) — 대신 슬금슬금 가게 둔다. */
+  .carve b { opacity: 1; animation: none; transform: none; filter: none; }
+  .veil-text.is-in { animation: none; }
+
   /* 영상은 CSS 로 멈출 수 없다. 대신 정지 그림 쪽을 계속 보여준다 —
      도령이 사라지지 않으면서 움직임만 없앤다. */
   .dr-still, .dr-media { transition: none; }
@@ -1246,6 +1313,77 @@ a.ch-item { text-decoration: none; color: inherit; }
 /* 고정 바가 마지막 글을 덮지 않게 바닥을 그만큼 띄운다 */
 .report:has(~ .paybar:not(.hidden)) { padding-bottom: 7rem; }
 @supports not (selector(:has(*))) { .report { padding-bottom: 7rem; } }
+
+/* ══════════════════════════════════════════════════════
+   광고 자리
+
+   값을 한 번만 받기로 하면서 붙은 자리다. 결제한 사람에게도 계속 붙는다 —
+   광고 제거를 팔지 않으니 사라지는 척하면 안 된다.
+
+   생김새의 원칙 하나. **글처럼 보이지 않게 한다.**
+   본문은 흰 바탕에 세로로 흐르는데, 여기는 한 겹 내린 면에 얇은 테를 둘러
+   "여긴 다른 것" 이라고 눈에 먼저 알린다. 위에 '광고' 라고 적는 건 규칙이기도 하고
+   속았다는 기분을 안 주려는 것이기도 하다.
+   ══════════════════════════════════════════════════════ */
+.adslot {
+  margin: 2rem 0 .4rem;
+  padding: .55rem .8rem .8rem;
+  /* --ink-1 로 뒀다가 되돌렸다. 오늘 탭 카드가 크림(--ink-2)이라 광고가 카드보다 **밝았다** —
+     내려앉히려던 게 떠올라서 시선을 더 먹었다. 광고에 시선을 더 줄 이유가 없다.
+     --ink-3 은 흰 바탕에서도 크림 카드 위에서도 한 겹 아래로 앉는다. */
+  background: var(--ink-3);
+  border: 1px solid var(--line-soft);
+  border-radius: 12px;
+  display: grid; gap: .45rem;
+  /* 광고망 태그가 자기 크기를 들고 오기 전에도 자리가 안 흔들리게 바닥을 준다 */
+  min-height: 4.5rem;
+}
+/* '광고' 라벨. --paper-far 로 뒀다가 올렸다 — #EDE6D6 위에서 4.10:1 로 AA 미달이었다.
+   눈에 덜 띄게 두고 싶은 마음이 있었는데, 광고라고 알리는 글자를 안 보이게 만드는 건
+   그 표시를 다는 이유를 스스로 없애는 짓이다. 대비를 맞춘다. */
+.adslot-tag {
+  font-size: .62rem; letter-spacing: .09em; font-weight: 700;
+  color: var(--paper-dim); text-transform: none;
+}
+.adslot ins { display: block; margin: 0 auto; max-width: 100%; }
+
+/* 집 광고 — 광고망이 없을 때 이 자리에 우리 것을 안내한다 */
+.ad-house { display: grid; gap: .3rem; justify-items: start; }
+.ad-lead {
+  font-style: normal; font-weight: 700; font-size: .92rem;
+  color: var(--paper); line-height: 1.45;
+}
+.ad-body { font-size: .84rem; color: var(--paper-dim); line-height: 1.6; margin: 0; }
+.ad-cta {
+  margin-top: .25rem;
+  padding: .42rem .85rem;
+  font-size: .82rem; font-weight: 600;
+  color: var(--gold-on-tint);
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  transition: background .18s ease, color .18s ease;
+}
+.ad-cta:hover, .ad-cta:focus-visible { background: var(--gold-ink); color: #fff; border-color: var(--gold-ink); }
+
+/* 오늘 탭 바닥에서 값 있는 탭으로 건네는 한 줄.
+   바(paybar)를 안 띄우는 탭이라 여기 한 줄이 유일한 안내다. 그래서 조용해야 한다. */
+.td-toPaid {
+  margin-top: 1.6rem;
+  font-size: .86rem; line-height: 1.75;
+  color: var(--paper-dim);
+  padding-top: 1rem;
+  border-top: 1px solid var(--line-soft);
+}
+.td-toPaid .td-open {
+  display: inline; padding: 0; margin: 0;
+  background: none; border: 0;
+  font: inherit; font-weight: 700;
+  color: var(--gold-on-tint);
+  text-decoration: underline; text-underline-offset: .2em;
+  text-decoration-color: var(--line);
+}
+.td-toPaid .td-open:hover { text-decoration-color: currentColor; }
 
 /* ── 재물 · 일 ─────────────────────────────────────────
    본문은 장(章)과 같은 꼴이라 .cp 스타일을 그대로 쓴다.

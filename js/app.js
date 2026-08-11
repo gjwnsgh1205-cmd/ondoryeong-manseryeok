@@ -290,12 +290,17 @@
       return;
     }
 
+    /* 이름을 **로딩보다 먼저** 적어둔다.
+       원래는 showVeil 뒤에 있었다. 그때는 이름이 글 안에서만 쓰여서 상관없었는데,
+       이제 로딩 첫 줄이 이름을 부른다. 순서를 안 바꾸면 처음 온 사람은
+       localStorage 가 비어 있어 이름이 영영 안 뜬다 — 두 번째 방문부터만 떴을 것이다. */
+    // 이름은 계산에 안 들어간다. 글의 {이름} 슬롯과 로딩 첫 줄에만 쓴다.
+    saveName($('f-name') ? $('f-name').value : '');
+
     const wait = opt.silent ? 0 : showVeil(c);
 
     chart = c;
     try { localStorage.setItem(STORE, JSON.stringify(got.raw)); } catch (e) { /* 저장 못 해도 진행 */ }
-    // 이름은 계산에 안 들어간다. 글의 {이름} 슬롯을 채우는 데만 쓴다.
-    saveName($('f-name') ? $('f-name').value : '');
 
     rp = Report.build(chart, { unlocked: opened() });
     renderReport();
@@ -348,16 +353,27 @@
      ══════════════════════════════════════════════════════ */
   let veilTimer = 0;
 
-  /* 화면에 흘릴 줄을 만든다. 명식이 있으면 그 값으로, 없으면 일반적인 말로. */
+  /* 화면에 흘릴 줄을 만든다. 명식이 있으면 그 값으로, 없으면 일반적인 말로.
+
+     줄마다 kind 가 붙는다. 어떻게 나타날지가 줄마다 달라야 하기 때문이다.
+       line  통째로 떠오른다 (기본)
+       type  한 자씩 찍힌다   — 이름을 부를 때. 이름은 흘러가면 안 되고 새겨져야 한다
+       carve 여덟 글자가 하나씩 새겨진다 — 곧 볼 명식표를 미리 보여주는 셈이다 */
   function veilLines(c) {
     if (!c) return [{ t: '어디 보자…', ms: 900 }];
     const P = c.pillars;
     const m = c.meta || {};
     const g = (k) => (P[k] ? P[k].stemInfo.han + P[k].branchInfo.han : '');
-    const rows = [
-      { t: '어디 보자…', ms: 1000 },
-      { t: `${c.input.year}년 ${c.input.month}월 ${c.input.day}일이라…`, ms: 1000 },
-    ];
+    const rows = [];
+
+    /* 이름을 먼저 부른다.
+       받아만 놓고 글 안에서만 쓰고 있었다. 화면에 이름이 뜨는 순간이 하나도 없었다.
+       기다림의 첫 1.4초를 여기 쓴다 — "내 얘기가 시작됐다" 가 여기서 정해진다. */
+    const who = readerName();
+    if (who) rows.push({ kind: 'type', t: `${who}.`, ms: 1500 });
+    else rows.push({ t: '어디 보자…', ms: 1000 });
+
+    rows.push({ t: `${c.input.year}년 ${c.input.month}월 ${c.input.day}일이라…`, ms: 1000 });
     /* 절기 — 이 앱이 제일 공들인 계산이라 이름을 그대로 보여준다.
        monthTerm 이 이 사람의 월주를 정한 절기다.
        nearestTermName 은 '가장 가까운' 절기라 아직 오지 않은 것일 수도 있다 —
@@ -373,9 +389,51 @@
     if (m.tzOffsetMin && m.tzOffsetMin !== 540) {
       rows.push({ t: '그 시절 시계가 지금과 달랐구먼. 그만큼 물려두지', ms: 1300 });
     }
-    rows.push({ t: `여덟 글자가 잡혔네. ${g('year')} ${g('month')} ${g('day')} ${g('hour')}`.trim(), ms: 1500 });
+    /* 여덟 글자. 예전엔 한 줄에 몰아 적어 지나갔다 —
+       이 앱이 하는 일의 알맹이인데 스쳐 지나가는 자막이었다.
+       이제 명경 안에 하나씩 새긴다. 표 모양 그대로라 다음 화면과 이어진다.
+       시각을 모르면 시주가 없어 여섯 글자다. 세는 말도 거기 맞춘다. */
+    const cols = ['year', 'month', 'day', 'hour'].filter((k) => P[k]);
+    const glyphs = cols.map((k) => ({ top: P[k].stemInfo.han, bot: P[k].branchInfo.han }));
+    rows.push({
+      kind: 'carve',
+      glyphs,
+      t: `${glyphs.length === 4 ? '여덟' : '여섯'} 글자가 잡혔네`,
+      // 새기는 데 걸리는 시간 + 다 새기고 나서 잠깐 보는 시간
+      ms: 900 + glyphs.length * 2 * 180 + 700,
+      say: `${cols.map((k) => g(k)).join(' ')}`,
+    });
     rows.push({ t: '이제 기운의 무게를 달아보겠네', ms: 1200 });
     return rows;
+  }
+
+  /* 이름을 한 자씩 찍는다.
+     타이머를 따로 물고 있어야 도중에 끊을 수 있다 — 안 그러면 화면이 닫힌 뒤에도
+     글자가 계속 찍히다가 다음 번 로딩에 남은 글자가 섞인다. */
+  let typeTimer = 0;
+  function typeInto(el, text, total) {
+    clearTimeout(typeTimer);
+    const chars = [...String(text)];
+    if (REDUCED) { el.textContent = text; return; }   // 모션을 줄여달라면 통째로
+    el.textContent = '';
+    const per = Math.max(60, Math.min(180, Math.floor(total * 0.55 / chars.length)));
+    let i = 0;
+    const tick = () => {
+      el.textContent += chars[i];
+      i += 1;
+      if (i < chars.length) typeTimer = setTimeout(tick, per);
+    };
+    tick();
+  }
+
+  /* 여덟 글자를 하나씩 새긴다. 천간이 위, 지지가 아래 — 곧 볼 명식표와 같은 배열이다. */
+  function carveInto(box, glyphs) {
+    box.innerHTML = glyphs.map((gl, n) => `
+      <span class="carve-col">
+        <b style="--d:${n * 180}ms">${esc(gl.top)}</b>
+        <b style="--d:${(glyphs.length + n) * 180}ms">${esc(gl.bot)}</b>
+      </span>`).join('');
+    box.classList.add('is-on');
   }
 
   function showVeil(c) {
@@ -384,28 +442,56 @@
     $('veil').classList.remove('hidden');
 
     const rows = veilLines(c);
+    const total = rows.reduce((a, r) => a + r.ms, 0);
+
+    /* 진행 바. 남은 시간을 숫자로 세지 않는다 — 세면 기다림이 길어진다.
+       한 번에 total 만큼 걸어두면 브라우저가 알아서 채운다. */
+    const fill = $('veil-bar-fill');
+    if (fill) {
+      fill.style.transition = 'none';
+      fill.style.width = '0%';
+      void fill.offsetWidth;
+      fill.style.transition = `width ${total}ms linear`;
+      fill.style.width = '100%';
+    }
+
+    const carve = $('veil-carve');
+    if (carve) { carve.innerHTML = ''; carve.classList.remove('is-on'); }
+
     let i = 0;
     const step = () => {
       const r = rows[i];
       const el = $('veil-text');
-      el.textContent = r.t;
+
+      if (r.kind === 'type') typeInto(el, r.t, r.ms);
+      else el.textContent = r.t;
+      // 이름 줄만 크게 새긴다
+      el.classList.toggle('is-name', r.kind === 'type');
+
       // 줄이 바뀔 때마다 살짝 올라오게. 같은 자리에서 글자만 갈리면 안 읽힌다.
       el.classList.remove('is-in');
       void el.offsetWidth;
       el.classList.add('is-in');
+
+      // 여덟 글자는 문장 아래 명경 안에 새긴다
+      if (r.kind === 'carve' && carve) carveInto(carve, r.glyphs);
+
       i += 1;
       if (i < rows.length) veilTimer = setTimeout(step, r.ms);
     };
     clearTimeout(veilTimer);
     step();
     // 전부 흘리는 데 걸리는 시간. 이만큼은 기다렸다가 결과를 연다.
-    return rows.reduce((a, r) => a + r.ms, 0);
+    return total;
   }
 
   function hideVeil() {
     clearTimeout(veilTimer);
+    clearTimeout(typeTimer);
     $('veil').classList.add('hidden');
     $('dr-veil').innerHTML = '';
+    const carve = $('veil-carve');
+    if (carve) { carve.innerHTML = ''; carve.classList.remove('is-on'); }
   }
 
   /* ══════════════════════════════════════════════════════

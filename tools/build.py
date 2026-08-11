@@ -19,9 +19,13 @@ DIST = ROOT / "docs"
 # deep.html 이 여기 같이 있었다. 19,800원짜리 심층 풀이 상세페이지였는데,
 # 값을 한 번 4,900원 하나로 합치면서 파는 물건이 아니게 되어 지웠다.
 # 필수 목록에 남겨두면 빌드가 "필수 입력 없음" 으로 멈춘다.
-REQUIRED_FILES = ["index.html"]
+REQUIRED_FILES = ["index.html", "story.html"]
 OPTIONAL_FILES = ["README.md"]
 DIRS = ["css", "js", "assets/web", "assets/video"]
+# 컷 앵커. **webp 만 올린다** — png 원본은 15.5MB 인데 webp 는 1.1MB 다.
+# assets/concept(184MB, 컨셉 고르기용 60장)은 배포에 넣지 않는다. 고르고 나면 쓸모가 없다.
+GLOB_ONLY = {"assets/scene": ("*.webp",)}
+LOOSE_FILES = ["assets/og.jpg"]
 
 
 def main():
@@ -42,6 +46,17 @@ def main():
             shutil.copy2(src, staging / src.name)
     for d in DIRS:
         shutil.copytree(ROOT / d, staging / d, dirs_exist_ok=True)
+    for d, pats in GLOB_ONLY.items():
+        dst = staging / d
+        dst.mkdir(parents=True, exist_ok=True)
+        for pat in pats:
+            for f in (ROOT / d).glob(pat):
+                shutil.copy2(f, dst / f.name)
+    for f in LOOSE_FILES:
+        src = ROOT / f
+        if src.exists():
+            (staging / f).parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(src, staging / f)
 
     # 스크립트·스타일에 내용 해시를 붙인다.
     # GitHub Pages 는 캐시를 오래 물고 있어서, 이걸 안 하면 index.html 만 새로 받고
@@ -63,7 +78,15 @@ def main():
 def stamp_assets(staging):
     """index.html 안의 로컬 js/css 참조에 ?v=<내용해시8> 를 붙인다."""
     import hashlib, re
-    html_path = staging / "index.html"
+    for page in ("index.html", "story.html"):
+        _stamp_one(staging, page)
+
+
+def _stamp_one(staging, page):
+    import hashlib, re
+    html_path = staging / page
+    if not html_path.exists():
+        return
     html = html_path.read_text(encoding="utf-8")
 
     def digest(rel):
@@ -82,7 +105,7 @@ def stamp_assets(staging):
 
     html, n = re.subn(r'(src|href)="((?:js|css)/[^"?]+)"', sub, html)
     html_path.write_text(html, encoding="utf-8")
-    print(f"  캐시 무효화: {n}개 참조에 해시 부착")
+    print(f"  캐시 무효화: {page} — {n}개 참조에 해시 부착")
 
 
 if __name__ == "__main__":

@@ -108,6 +108,32 @@ async function main() {
     console.log(JSON.stringify({ name: name || '', started: r }, null, 1));
     return;
   }
+  /* i2v 는 **공개 URL** 을 받는다. 내 컴퓨터 파일 경로로는 안 된다.
+     GitHub Pages 에 올려서 쓸 수도 있지만 배포 전에도 돌려봐야 하니
+     빠나나 쪽 저장소에 올려 URL 을 받는다. */
+  if (cmd === 'upload') {
+    const p = rest[0];
+    if (!p) { console.error('upload <파일경로>'); process.exit(1); }
+    const b64 = fs.readFileSync(p).toString('base64');
+    // 인자 이름이 data 다. image_base64 로 보내면 "Required at data" 가 돌아온다.
+    const r = await call('upload_image', { data: b64, file_name: path.basename(p) });
+    const txt = JSON.stringify(r);
+    const url = (txt.match(/https?:\/\/[^"\\ ]+/) || [])[0];
+    console.log(url || txt.slice(0, 400));
+    return;
+  }
+  /* 결과 영상을 내려받는다. 남의 서버 URL 을 화면에 박아두면
+     그쪽이 지우는 순간 화면이 빈다. 파일로 갖고 있어야 한다. */
+  if (cmd === 'fetch') {
+    const [url, out] = rest;
+    if (!url || !out) { console.error('fetch <URL> <저장경로>'); process.exit(1); }
+    const res = await fetch(url);
+    if (!res.ok) { console.error('내려받기 실패 ' + res.status); process.exit(1); }
+    fs.mkdirSync(path.dirname(out), { recursive: true });
+    fs.writeFileSync(out, Buffer.from(await res.arrayBuffer()));
+    console.log(out + ' ' + (fs.statSync(out).size / 1024 / 1024).toFixed(2) + 'MB');
+    return;
+  }
   if (cmd === 'poll') {
     const id = rest[0];
     await call('get_status', { taskId: id }).catch(() => null);

@@ -13,3 +13,9 @@ __pycache__/
 # 워크플로에 원고를 넘기려고 잠깐 만드는 파일들.
 # 결과는 tools/*_source.json 에 남고 이건 중간 산물이라 저장소에 둘 이유가 없다.
 tools/_*.json
+
+# 컨셉 고르기용 60장(184MB). 고르고 나면 쓸모가 없어 저장소에 안 올린다.
+assets/concept/
+concept.html
+tools/concept/_data.json
+shots/

@@ -140,10 +140,23 @@
 <!-- ════════════════════════════════════════════════════════
      만세력을 넘기는 동안
      ════════════════════════════════════════════════════════ -->
+<!-- 기다리는 동안이 비어 있으면 안 된다.
+     예전엔 도령 그림 하나에 "잠시만요…" 한 줄이었다. 계산은 100밀리초면 끝나는데
+     일부러 7초를 끄는 화면이라, 그 7초가 비면 끄는 이유가 사라진다.
+
+     그래서 **명경**을 뒀다. 도령이 든 거울에 글자가 새겨진다 —
+     이름이 한 자씩 찍히고, 여덟 글자가 하나씩 새겨진다.
+     진행 바는 맨 위 한 줄로만 둔다. 숫자를 세어 보여주면 기다림이 길게 느껴진다. -->
 <div id="veil" class="veil hidden" role="status" aria-live="polite" aria-atomic="true">
+  <div class="veil-bar" aria-hidden="true"><i id="veil-bar-fill"></i></div>
   <div class="veil-inner">
     <div id="dr-veil" class="dr-veil"></div>
-    <p class="veil-text" id="veil-text">잠시만요…</p>
+    <div class="mirror" id="veil-mirror">
+      <p class="veil-text" id="veil-text">잠시만요…</p>
+      <!-- 여덟 글자가 하나씩 새겨지는 자리.
+           읽어주는 기계에는 위 문장으로 이미 전해져서 여기는 장식으로 둔다. -->
+      <div class="carve" id="veil-carve" aria-hidden="true"></div>
+    </div>
   </div>
 </div>
 

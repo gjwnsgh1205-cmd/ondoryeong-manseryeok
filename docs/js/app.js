@@ -16,9 +16,17 @@
   const EL_VAR = (i) => `var(--el-${i})`;
   const STORE = 'ondoryeong.birth.v2';
   const STREAK = 'ondoryeong.streak.v1';
-  const PASS = 'ondoryeong.pass.v1';      // 구독·단건 상태 (서버 검증 붙기 전 임시)
-  const SUB_PRICE = 4900;                 // 월 구독 — 광고 없음 + 매일 운세 전체 + 잠긴 글
-  const DEEP_PRICE = 19800;               // 단건 — 내 상황을 넣은 심층 상담
+  const PASS = 'ondoryeong.pass.v1';      // 결제 상태 (서버 검증 붙기 전 임시)
+  /* ── 값 ─────────────────────────────────────────────────
+     **한 번만 받는다.** 달마다 받지 않는다.
+     구독을 접은 이유는 간단하다. 글이 129편으로 끝이 있어서
+     둘째 달 결제일에 새로 열어줄 화면이 없었다. 없는 걸 팔 수는 없다.
+
+     대신 셋으로 나눠 붙였다.
+       1) 한 번 4,900원 — 기질·사주팔자·인생 흐름의 가려진 문단이 영영 열린다
+       2) 오늘의 운수는 값을 안 받는다 — 날마다 다시 오게 하는 자리다
+       3) 광고는 결제와 무관하게 늘 붙는다 — 매일 오는 사람에게서 나오는 몫이다 */
+  const PRICE = 4900;
   // 모션을 줄여달라는 요청은 CSS 뿐 아니라 우리가 만들어 넣는 SVG 애니메이션에도 적용된다
   const REDUCED = typeof matchMedia === 'function'
     && matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -34,10 +42,11 @@
   const SH = typeof Share !== 'undefined' ? Share : null;
   const CP = typeof Chapter !== 'undefined' ? Chapter : null;
   const J = typeof Josa !== 'undefined' ? Josa : null;
+  const AD = typeof Ads !== 'undefined' ? Ads : null;
 
   /* ── 유료분 ───────────────────────────────────────────
      잠긴 문단은 content.js 에 글자가 없다. 길이만 있다.
-     구독한 사람일 때만 js/content-paid.js 를 따로 받아 온다.
+     값을 치른 사람일 때만 js/content-paid.js 를 따로 받아 온다.
 
      **분명히 해둔다. 이건 보안이 아니다.** 정적 파일이라 주소만 알면 누구나 받는다.
      결제를 붙일 때 이 함수 하나를 인증이 걸린 서버 응답으로 갈아 끼우면 되게
@@ -103,26 +112,20 @@
   /* ── 무엇을 열어줄 것인가 ─────────────────────────────────
      무료라도 훅(제목·왜 그런지)은 다 보여준다. 가리는 건 실용 정보다.
      "뭐가 있는지 모르는 것"은 궁금하지 않고, "거의 다 아는데 한 조각이 빈 것"이 궁금하다. */
-  let ent = { sub: false, deep: false };
+  let ent = { paid: false };
   function loadEnt() {
     try { ent = { ...ent, ...(JSON.parse(localStorage.getItem(PASS) || '{}')) }; } catch (e) {}
     return ent;
   }
   function saveEnt() { try { localStorage.setItem(PASS, JSON.stringify(ent)); } catch (e) {} }
-  const opened = () => ent.sub || ent.deep;   // 구독이든 단건이든 열리면 다 열린다
+  /* sub·deep 은 구독을 팔던 시절의 열쇠다. 이미 저장해 둔 사람이 새로고침 한 번에
+     잠기면 안 되니 계속 읽어준다. 새로 적히지는 않는다. */
+  const opened = () => !!(ent.paid || ent.sub || ent.deep);
 
-  /* 가려진 칸. 실제 글자를 DOM에 넣지 않는다 —
-     흐리게만 처리하면 개발자도구로 그대로 읽힌다. 길이만 흉내 낸 막대를 그린다. */
-  function veil(text, opt = {}) {
-    const n = Math.max(6, Math.min(64, [...String(text || '')].length));
-    const rows = [];
-    let left = n;
-    while (left > 0) { rows.push(Math.min(left, 26)); left -= 26; }
-    return `<span class="veiled" role="img" aria-label="${esc(opt.label || '구독하면 열리는 자리')}">${
-      rows.map((w) => `<i style="width:${w}ch"></i>`).join('')}</span>`;
-  }
-  // 열려 있으면 글, 아니면 가린 자리
-  const show = (text, label) => (opened() ? esc(text) : veil(text, { label }));
+  /* 여기 veil()/show() 두 함수가 있었다. 한 칸짜리 실용 정보(잘 풀리는 때, 미뤄둘 일,
+     내일 미리보기 …)를 막대로 가리는 데 썼는데, 그게 전부 오늘 탭에 있었다.
+     오늘을 통째로 열면서 부르는 데가 하나도 안 남아 지웠다.
+     문단을 가리는 일은 chapter.js 가 자기 것으로 계속 한다. */
 
   /* ══════════════════════════════════════════════════════
      달력 — 음력이면 양력으로 바꾼다
@@ -287,12 +290,17 @@
       return;
     }
 
+    /* 이름을 **로딩보다 먼저** 적어둔다.
+       원래는 showVeil 뒤에 있었다. 그때는 이름이 글 안에서만 쓰여서 상관없었는데,
+       이제 로딩 첫 줄이 이름을 부른다. 순서를 안 바꾸면 처음 온 사람은
+       localStorage 가 비어 있어 이름이 영영 안 뜬다 — 두 번째 방문부터만 떴을 것이다. */
+    // 이름은 계산에 안 들어간다. 글의 {이름} 슬롯과 로딩 첫 줄에만 쓴다.
+    saveName($('f-name') ? $('f-name').value : '');
+
     const wait = opt.silent ? 0 : showVeil(c);
 
     chart = c;
     try { localStorage.setItem(STORE, JSON.stringify(got.raw)); } catch (e) { /* 저장 못 해도 진행 */ }
-    // 이름은 계산에 안 들어간다. 글의 {이름} 슬롯을 채우는 데만 쓴다.
-    saveName($('f-name') ? $('f-name').value : '');
 
     rp = Report.build(chart, { unlocked: opened() });
     renderReport();
@@ -345,16 +353,27 @@
      ══════════════════════════════════════════════════════ */
   let veilTimer = 0;
 
-  /* 화면에 흘릴 줄을 만든다. 명식이 있으면 그 값으로, 없으면 일반적인 말로. */
+  /* 화면에 흘릴 줄을 만든다. 명식이 있으면 그 값으로, 없으면 일반적인 말로.
+
+     줄마다 kind 가 붙는다. 어떻게 나타날지가 줄마다 달라야 하기 때문이다.
+       line  통째로 떠오른다 (기본)
+       type  한 자씩 찍힌다   — 이름을 부를 때. 이름은 흘러가면 안 되고 새겨져야 한다
+       carve 여덟 글자가 하나씩 새겨진다 — 곧 볼 명식표를 미리 보여주는 셈이다 */
   function veilLines(c) {
     if (!c) return [{ t: '어디 보자…', ms: 900 }];
     const P = c.pillars;
     const m = c.meta || {};
     const g = (k) => (P[k] ? P[k].stemInfo.han + P[k].branchInfo.han : '');
-    const rows = [
-      { t: '어디 보자…', ms: 1000 },
-      { t: `${c.input.year}년 ${c.input.month}월 ${c.input.day}일이라…`, ms: 1000 },
-    ];
+    const rows = [];
+
+    /* 이름을 먼저 부른다.
+       받아만 놓고 글 안에서만 쓰고 있었다. 화면에 이름이 뜨는 순간이 하나도 없었다.
+       기다림의 첫 1.4초를 여기 쓴다 — "내 얘기가 시작됐다" 가 여기서 정해진다. */
+    const who = readerName();
+    if (who) rows.push({ kind: 'type', t: `${who}.`, ms: 1500 });
+    else rows.push({ t: '어디 보자…', ms: 1000 });
+
+    rows.push({ t: `${c.input.year}년 ${c.input.month}월 ${c.input.day}일이라…`, ms: 1000 });
     /* 절기 — 이 앱이 제일 공들인 계산이라 이름을 그대로 보여준다.
        monthTerm 이 이 사람의 월주를 정한 절기다.
        nearestTermName 은 '가장 가까운' 절기라 아직 오지 않은 것일 수도 있다 —
@@ -370,9 +389,51 @@
     if (m.tzOffsetMin && m.tzOffsetMin !== 540) {
       rows.push({ t: '그 시절 시계가 지금과 달랐구먼. 그만큼 물려두지', ms: 1300 });
     }
-    rows.push({ t: `여덟 글자가 잡혔네. ${g('year')} ${g('month')} ${g('day')} ${g('hour')}`.trim(), ms: 1500 });
+    /* 여덟 글자. 예전엔 한 줄에 몰아 적어 지나갔다 —
+       이 앱이 하는 일의 알맹이인데 스쳐 지나가는 자막이었다.
+       이제 명경 안에 하나씩 새긴다. 표 모양 그대로라 다음 화면과 이어진다.
+       시각을 모르면 시주가 없어 여섯 글자다. 세는 말도 거기 맞춘다. */
+    const cols = ['year', 'month', 'day', 'hour'].filter((k) => P[k]);
+    const glyphs = cols.map((k) => ({ top: P[k].stemInfo.han, bot: P[k].branchInfo.han }));
+    rows.push({
+      kind: 'carve',
+      glyphs,
+      t: `${glyphs.length === 4 ? '여덟' : '여섯'} 글자가 잡혔네`,
+      // 새기는 데 걸리는 시간 + 다 새기고 나서 잠깐 보는 시간
+      ms: 900 + glyphs.length * 2 * 180 + 700,
+      say: `${cols.map((k) => g(k)).join(' ')}`,
+    });
     rows.push({ t: '이제 기운의 무게를 달아보겠네', ms: 1200 });
     return rows;
+  }
+
+  /* 이름을 한 자씩 찍는다.
+     타이머를 따로 물고 있어야 도중에 끊을 수 있다 — 안 그러면 화면이 닫힌 뒤에도
+     글자가 계속 찍히다가 다음 번 로딩에 남은 글자가 섞인다. */
+  let typeTimer = 0;
+  function typeInto(el, text, total) {
+    clearTimeout(typeTimer);
+    const chars = [...String(text)];
+    if (REDUCED) { el.textContent = text; return; }   // 모션을 줄여달라면 통째로
+    el.textContent = '';
+    const per = Math.max(60, Math.min(180, Math.floor(total * 0.55 / chars.length)));
+    let i = 0;
+    const tick = () => {
+      el.textContent += chars[i];
+      i += 1;
+      if (i < chars.length) typeTimer = setTimeout(tick, per);
+    };
+    tick();
+  }
+
+  /* 여덟 글자를 하나씩 새긴다. 천간이 위, 지지가 아래 — 곧 볼 명식표와 같은 배열이다. */
+  function carveInto(box, glyphs) {
+    box.innerHTML = glyphs.map((gl, n) => `
+      <span class="carve-col">
+        <b style="--d:${n * 180}ms">${esc(gl.top)}</b>
+        <b style="--d:${(glyphs.length + n) * 180}ms">${esc(gl.bot)}</b>
+      </span>`).join('');
+    box.classList.add('is-on');
   }
 
   function showVeil(c) {
@@ -381,28 +442,56 @@
     $('veil').classList.remove('hidden');
 
     const rows = veilLines(c);
+    const total = rows.reduce((a, r) => a + r.ms, 0);
+
+    /* 진행 바. 남은 시간을 숫자로 세지 않는다 — 세면 기다림이 길어진다.
+       한 번에 total 만큼 걸어두면 브라우저가 알아서 채운다. */
+    const fill = $('veil-bar-fill');
+    if (fill) {
+      fill.style.transition = 'none';
+      fill.style.width = '0%';
+      void fill.offsetWidth;
+      fill.style.transition = `width ${total}ms linear`;
+      fill.style.width = '100%';
+    }
+
+    const carve = $('veil-carve');
+    if (carve) { carve.innerHTML = ''; carve.classList.remove('is-on'); }
+
     let i = 0;
     const step = () => {
       const r = rows[i];
       const el = $('veil-text');
-      el.textContent = r.t;
+
+      if (r.kind === 'type') typeInto(el, r.t, r.ms);
+      else el.textContent = r.t;
+      // 이름 줄만 크게 새긴다
+      el.classList.toggle('is-name', r.kind === 'type');
+
       // 줄이 바뀔 때마다 살짝 올라오게. 같은 자리에서 글자만 갈리면 안 읽힌다.
       el.classList.remove('is-in');
       void el.offsetWidth;
       el.classList.add('is-in');
+
+      // 여덟 글자는 문장 아래 명경 안에 새긴다
+      if (r.kind === 'carve' && carve) carveInto(carve, r.glyphs);
+
       i += 1;
       if (i < rows.length) veilTimer = setTimeout(step, r.ms);
     };
     clearTimeout(veilTimer);
     step();
     // 전부 흘리는 데 걸리는 시간. 이만큼은 기다렸다가 결과를 연다.
-    return rows.reduce((a, r) => a + r.ms, 0);
+    return total;
   }
 
   function hideVeil() {
     clearTimeout(veilTimer);
+    clearTimeout(typeTimer);
     $('veil').classList.add('hidden');
     $('dr-veil').innerHTML = '';
+    const carve = $('veil-carve');
+    if (carve) { carve.innerHTML = ''; carve.classList.remove('is-on'); }
   }
 
   /* ══════════════════════════════════════════════════════
@@ -501,7 +590,7 @@
         open: opened(),
         values: { 물상: t.noun, 이름: readerName() },
         cta: `<button type="button" class="td-open" data-open="1">${
-          SUB_PRICE.toLocaleString()}원으로 마저 읽기</button>`,
+          PRICE.toLocaleString()}원 한 번으로 마저 읽기</button>`,
       })
       // 두께는 긴 글에 안 들어간다. 계산으로 나온 값이라 글과 성격이 다르다.
       + `<div class="np" style="--npc:var(--gold-ink)">
@@ -720,7 +809,7 @@
       // "경술(庚戌)" 꼴. 조사는 한글 쪽 소리로 붙는다 — josa.js 가 괄호를 떼고 본다.
       values: { 물상: rp.type.noun, 이름: readerName(), 대운간지: `${p.ganji}(${p.han})` },
       cta: `<button type="button" class="td-open" data-open="1">${
-        SUB_PRICE.toLocaleString()}원으로 마저 읽기</button>`,
+        PRICE.toLocaleString()}원 한 번으로 마저 읽기</button>`,
     }) : '';
   }
 
@@ -757,8 +846,9 @@
     }
     if (f.month && f.month.han) tags.push(`<span class="tf-tag"><b>${esc(f.month.han)}</b>월 · ${esc(f.month.term)}</span>`);
     const body = [];
-    if (f.month && f.month.line) body.push(`<p>${show(f.month.line, '이번 달 풀이')}</p>`);
-    if (f.year && f.year.line) body.push(`<p class="tf-year">${show(f.year.line, '올해 풀이')}</p>`);
+    // 오늘 탭은 값을 안 받는다. 이번 달·올해도 가리지 않는다.
+    if (f.month && f.month.line) body.push(`<p>${esc(f.month.line)}</p>`);
+    if (f.year && f.year.line) body.push(`<p class="tf-year">${esc(f.year.line)}</p>`);
     if (!tags.length && !body.length) return '';
     return `<div class="td-flow">
       <i class="tf-label">지금 어디쯤인가</i>
@@ -823,7 +913,6 @@
           <span class="wk-n">${d.isToday ? '오늘' : ''}</span>
           <span class="wk-w">${esc(d.weekday)}</span>
         </div>`).join('')}</div>
-      ${opened() ? '' : '<p class="wk-lock">이레치 점수는 구독하면 전부 보여요</p>'}
     </div>`;
   }
 
@@ -850,10 +939,8 @@
       ${ch.paras.length > 1 ? `<details class="td-read">
         <summary>오늘을 더 읽기 · ${ch.paras.length - 1}문단</summary>
         <div class="td-read-body">${CP.render({ paras: ch.paras.slice(1), cutAt: 1 }, {
-          open: opened(),
+          open: true,   // 오늘은 값을 안 받는다 — 접기만 하고 가리지는 않는다
           values: { 물상: rp.type.noun, 이름: readerName(), 오늘간지: t.ganji + '일' },
-          cta: `<button type="button" class="td-open" id="btn-open-read">${
-            SUB_PRICE.toLocaleString('ko-KR')}원으로 마저 읽기</button>`,
         })}</div>
       </details>` : ''}` : `
       ${t.headline ? `<p class="td-headline">${esc(t.headline)}</p>` : ''}
@@ -882,39 +969,41 @@
       ${flowBlock()}
       ${weekBlock()}
 
+      ${AD ? AD.slot('today-mid') : ''}
+
       ${t.special && t.kindLine ? `<div class="td-kindbox">
         <p>${esc(t.kindLine)}</p>
-        ${t.kindTip ? `<p class="td-kindtip">${show(t.kindTip, '오늘의 처방')}</p>` : ''}
+        ${t.kindTip ? `<p class="td-kindtip">${esc(t.kindTip)}</p>` : ''}
       </div>` : ''}
 
-      ${!ch && three.length ? `<div class="td-three">${three.map(([k, v, c], i) => `
-        <div class="td-one td-one-${c}"><i>${esc(k)}</i><span>${
-          i === 0 ? esc(v) : show(v, k + ' 풀이')}</span></div>`).join('')}</div>` : ''}
+      ${!ch && three.length ? `<div class="td-three">${three.map(([k, v, c]) => `
+        <div class="td-one td-one-${c}"><i>${esc(k)}</i><span>${esc(v)}</span></div>`).join('')}</div>` : ''}
 
       ${t.bestTime ? `<div class="td-time">
         <i>잘 풀리는 때</i>
-        ${opened() ? `<b>${esc(t.bestTime)}</b>${t.bestWhy ? `<span>${esc(t.bestWhy)}</span>` : ''}`
-                   : veil(t.bestTime + (t.bestWhy || ''), { label: '잘 풀리는 시간대' })}
+        <b>${esc(t.bestTime)}</b>${t.bestWhy ? `<span>${esc(t.bestWhy)}</span>` : ''}
       </div>` : ''}
 
       <div class="td-acts">
         ${(ch && ch.doThis) || t.doThis ? `<div class="td-act"><i>오늘 해볼 것</i><span>${esc((ch && ch.doThis) || t.doThis)}</span></div>` : ''}
-        ${(ch && ch.avoid) || t.avoid ? `<div class="td-act is-hold"><i>오늘 미뤄둘 것</i><span>${show((ch && ch.avoid) || t.avoid, '오늘 미뤄둘 일')}</span></div>` : ''}
+        ${(ch && ch.avoid) || t.avoid ? `<div class="td-act is-hold"><i>오늘 미뤄둘 것</i><span>${esc((ch && ch.avoid) || t.avoid)}</span></div>` : ''}
       </div>
 
-      ${!ch && t.watchFor ? `<p class="td-watch"><i>걸리기 쉬운 자리</i>${show(t.watchFor, '걸리기 쉬운 자리')}</p>` : ''}
-      ${!ch && t.goodWith ? `<p class="td-good"><i>오늘 곁에 두면 좋은 사람</i>${show(t.goodWith, '곁에 두면 좋은 사람')}</p>` : ''}
-
-      ${opened() ? '' : `<button type="button" class="td-open" id="btn-open-today">
-        가려진 곳까지 매일 보기 · 달마다 ${SUB_PRICE.toLocaleString('ko-KR')}원
-      </button>`}
+      ${!ch && t.watchFor ? `<p class="td-watch"><i>걸리기 쉬운 자리</i>${esc(t.watchFor)}</p>` : ''}
+      ${!ch && t.goodWith ? `<p class="td-good"><i>오늘 곁에 두면 좋은 사람</i>${esc(t.goodWith)}</p>` : ''}
 
       <div class="td-foot">
         ${streak > 1 ? `<span class="td-streak">${streak}일째 오셨네</span>` : ''}
-        ${tm && tm.headline ? `<span class="td-tomorrow">내일은 ${esc(tm.ganji)}일 · ${
-          opened() ? esc(tm.headline) : veil(tm.headline, { label: '내일 미리보기' })}</span>` : ''}
-      </div>`;
+        ${tm && tm.headline ? `<span class="td-tomorrow">내일은 ${esc(tm.ganji)}일 · ${esc(tm.headline)}</span>` : ''}
+      </div>
 
+      ${opened() ? '' : `<p class="td-toPaid">오늘은 여기까지가 전부예요.
+        타고난 성격·사주팔자·인생 흐름은 가려진 데가 있는데,
+        <button type="button" class="td-open">한 번 열면</button> 계속 볼 수 있어요.</p>`}
+
+      ${AD ? AD.slot('today-foot') : ''}`;
+
+    if (AD) AD.mount($('today'));
   }
 
   /* 제목의 "[ 한 가지 ]" 를 빈칸으로 바꾸던 함수가 여기 있었다.
@@ -949,7 +1038,7 @@
     bar.classList.add('hidden');
 
     const targets = document.querySelectorAll(
-      '.pane:not([hidden]) .cp-veil, .pane:not([hidden]) .veiled, .pane:not([hidden]) .cp-more');
+      '.pane:not([hidden]) .cp-veil, .pane:not([hidden]) .cp-more');
     if (!targets.length) return;
 
     if (!('IntersectionObserver' in window)) { showPaybar(); return; }
@@ -966,10 +1055,10 @@
     if (!bar || opened()) return;
     // 지금 이 판에서 가려진 게 몇 군데인지 세어 문구에 담는다.
     // 막연한 광고보다 숫자가 미덥다.
-    const n = document.querySelectorAll('.pane:not([hidden]) .cp-veil, .pane:not([hidden]) .veiled').length;
+    const n = document.querySelectorAll('.pane:not([hidden]) .cp-veil').length;
     // 390px 한 줄에 들어가야 한다. 길면 두 줄로 접혀 바가 두꺼워진다.
     $('paybar-lead').textContent = n ? `가려진 ${n}곳 열기` : '전체 풀이 열기';
-    $('unlock-price').textContent = SUB_PRICE.toLocaleString('ko-KR') + '원';
+    $('unlock-price').textContent = PRICE.toLocaleString('ko-KR') + '원';
     $('unlock-note').textContent = '결제는 아직 붙이는 중이라 지금은 눌러도 그냥 열려요.';
     bar.classList.remove('hidden');
   }
@@ -996,7 +1085,7 @@
       open: opened(),
       values: { 이름: readerName() },
       cta: `<button type="button" class="td-open" data-open="1">${
-        SUB_PRICE.toLocaleString('ko-KR')}원으로 마저 읽기</button>`,
+        PRICE.toLocaleString('ko-KR')}원 한 번으로 마저 읽기</button>`,
     })
       // 조건 문단은 잠겼을 때 함께 가린다. 본문 뒤에 붙는 것도 결국 유료분이다.
       + (extra && opened() ? `<div class="rd-add">${extra}</div>` : '')
@@ -1056,7 +1145,7 @@
           올해간지: y ? `${y.ganji}(${y.han})` : '',
         },
         cta: `<button type="button" class="td-open" data-open="1">${
-          SUB_PRICE.toLocaleString('ko-KR')}원으로 마저 읽기</button>`,
+          PRICE.toLocaleString('ko-KR')}원 한 번으로 마저 읽기</button>`,
       });
     }
   }
@@ -1246,6 +1335,8 @@
     renderSix();
     renderPaybar();
     renderInvite();
+    // 탭 바닥의 광고 자리를 채운다. 이미 찬 자리는 건너뛰니 다시 그려도 안전하다.
+    if (AD) AD.mount();
     $('cs-name').textContent = rp.type.name;
     /* 탭을 고르는 일은 여기서 하지 않는다. cast() 가 안내를 켤지 말지 정한 뒤에 정해진다.
        다만 안내 중에 다시 그리는 경우(자정 넘김 등)에는 보던 걸음을 지켜야 한다. */
@@ -1265,7 +1356,7 @@
   }
 
   /* ══════════════════════════════════════════════════════
-     내 상황 — 19,800원짜리 풀이의 알맹이
+     내 상황 — 값을 치른 사람 풀이의 알맹이
      ══════════════════════════════════════════════════════ */
   let sit = {};   // 사용자가 채운 여덟 가지
 
@@ -1418,8 +1509,19 @@
     const out = left <= 0;
     $('pass-box').classList.toggle('hidden', !out);
     if (out) {
-      $('pass-copy').textContent = '여기까지가 그냥 들어드릴 수 있는 몫이에요. 더 깊이 들어가려면 한 걸음 더 필요해요.';
-      $('pass-note').textContent = '구독하시면 한 달에 한 번, 이어서 깊이 물을 수 있어요. 결제는 준비 중이라 지금은 눌러도 그냥 열려요.';
+      /* 여기 4,900원짜리 '상담권' 이 따로 있었다. 값을 한 번만 받기로 한 뒤로는
+         같은 값이 두 군데 붙은 셈이라 "아까 냈는데 또?" 가 된다.
+         하나로 합친다 — 그 한 번이 가려진 글도 열고 상담도 이어준다. */
+      const paid = opened();
+      $('pass-copy').textContent = paid
+        ? '여기까지가 한 번에 들어드리는 몫이에요. 이어서 물으실래요?'
+        : '여기까지가 그냥 들어드릴 수 있는 몫이에요. 더 깊이 들어가려면 한 걸음 더 필요해요.';
+      $('btn-pass').textContent = paid
+        ? '이어서 묻기'
+        : `가려진 글까지 열고 이어 묻기 · 한 번 ${PRICE.toLocaleString('ko-KR')}원`;
+      $('pass-note').textContent = paid
+        ? '이미 열어두셨으니 값은 다시 안 받아요.'
+        : '한 번 열어두면 가려진 글도 같이 열려요. 결제는 준비 중이라 지금은 눌러도 그냥 열려요.';
     }
     $('btn-ask').disabled = out;
     $('f-ask').disabled = out;
@@ -1524,7 +1626,8 @@
     });
 
     $('btn-unlock').addEventListener('click', () => {
-      ent.sub = !ent.sub;            // 결제가 붙기 전까지는 그냥 켜고 끈다
+      ent.paid = !opened();          // 결제가 붙기 전까지는 그냥 켜고 끈다
+      if (!ent.paid) { ent.sub = false; ent.deep = false; }   // 옛 열쇠도 같이 끈다
       saveEnt();
       // 켤 때 유료 문단을 받아 온다. 다 받고 나서 그려야 막대가 글로 바뀐다.
       loadPaid().then(() => {
@@ -1541,15 +1644,18 @@
        살아 있었다. 나머지 셋은 눌러도 아무 일이 없었다.
        #report 에 한 번만 걸어두면 몇 번을 다시 그려도 계속 듣는다. */
     $('report').addEventListener('click', (e) => {
-      const b = e.target.closest('.td-open');
+      // 집 광고에서 다른 탭으로 보내는 단추. 여는 단추보다 먼저 따진다.
+      const go = e.target.closest('.ad-cta[data-goto]');
+      if (go) { showTab(go.getAttribute('data-goto')); return; }
+      const b = e.target.closest('.td-open, .ad-cta');
       if (!b) return;
       $('btn-unlock').click();
     });
 
     // 한 번에 제대로 — 내 사정을 받아 그 위에 명식을 얹는 자리.
     // 미리 지어둔 글로는 못 하는 것이라 여기만 값이 다르다.
-    // 19,800원은 "내 이야기를 듣고 쓰는 풀이"다. 먼저 이야기를 받는다.
-    // 19,800원 단건은 접었다(월 4,900원 하나로 간다). 단추가 화면에 없어 연결하지 않는다.
+    // 여기는 "내 이야기를 듣고 쓰는 풀이"다. 먼저 이야기를 받는다.
+    // 값은 한 번 4,900원 하나로 합쳤다 — 이 자리도 같은 열쇠(ent.paid)를 쓴다.
     $('btn-sit-back').addEventListener('click', () => {
       $('step-situation').classList.add('hidden');
       $('report').classList.remove('hidden');
@@ -1559,7 +1665,7 @@
       e.preventDefault();
       const bad = SIT && SIT.validate(sit);
       if (bad) { $('sit-err').textContent = bad; $('sit-' + SIT.FIELDS[0].id).focus(); return; }
-      ent.deep = true;                       // 결제가 붙기 전까지는 그냥 연다
+      ent.paid = true;                       // 결제가 붙기 전까지는 그냥 연다
       saveEnt();
       rp = Report.build(chart, { unlocked: opened() });
       renderReport();
@@ -1570,6 +1676,17 @@
     });
 
     $('btn-pass').addEventListener('click', () => {
+      // 아직 안 연 사람이면 이 한 번이 글까지 같이 연다. 값을 두 번 받지 않는다.
+      const first = !opened();
+      if (first) {
+        ent.paid = true;                     // 결제가 붙기 전까지는 그냥 연다
+        saveEnt();
+        loadPaid().then(() => {
+          if (!chart) return;
+          rp = Report.build(chart, { unlocked: opened() });
+          renderReport();
+        });
+      }
       if (CS && CS.grantPass) CS.grantPass(session);
       $('pass-box').classList.add('hidden');
       syncTurns();
@@ -1621,8 +1738,8 @@
   function boot() {
     if (typeof Manse === 'undefined') return;
     if (window.Astronomy && Manse.setAstro) Manse.setAstro(window.Astronomy);
-    loadEnt();          // 구독·단건 상태를 되살린다. 이게 없으면 새로고침마다 다시 잠긴다.
-    // 이미 구독 중인 채로 들어온 사람. 받아 두면 첫 그리기부터 글이 나온다.
+    loadEnt();          // 결제 상태를 되살린다. 이게 없으면 새로고침마다 다시 잠긴다.
+    // 이미 값을 치른 채로 들어온 사람. 받아 두면 첫 그리기부터 글이 나온다.
     if (opened()) loadPaid();
     mountGate();
     bind();

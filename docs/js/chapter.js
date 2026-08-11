@@ -63,13 +63,13 @@ const Chapter = (() => {
     let left = Math.max(12, Math.min(240, n));
     while (left > 0) { rows.push(Math.min(left, 26)); left -= 26; }
     if (rows.length > 1) rows[rows.length - 1] = Math.max(8, Math.round(rows[rows.length - 1] * 0.6));
-    return '<p class="cp-veil" role="img" aria-label="구독하면 열리는 자리">'
+    return '<p class="cp-veil" role="img" aria-label="열면 보이는 자리">'
       + rows.map((w) => `<i style="width:${w}ch"></i>`).join('') + '</p>';
   }
 
   /* 한 장을 통째로 그린다.
 
-     opts.open   구독 중이면 true — 전부 보여준다
+     opts.open   값을 치렀으면 true — 전부 보여준다
      opts.values 슬롯에 넣을 값
      opts.act    { doThis, avoid } — 글 아래에 따로 붙이는 행동 한 줄.
                  코덱스와 합의한 자리다. 해석은 읽는 영역이고 행동은 실행하는
@@ -80,7 +80,7 @@ const Chapter = (() => {
     const v = opts.values || {};
 
     /* 잠긴 문단은 이 파일에 글자가 없다. 길이(ch.hidden)만 있다.
-       구독한 사람에게는 js/content-paid.js 가 따로 내려오고, 부르는 쪽이 opts.paid 로 넘긴다.
+       값을 치른 사람에게는 js/content-paid.js 가 따로 내려오고, 부르는 쪽이 opts.paid 로 넘긴다.
        못 받았으면 길이만으로 막대를 그린다 — 글자가 없으니 개발자도구로도 못 읽는다.
 
        다만 분명히 해둔다. 지금 유료 파일은 정적이라 **주소만 알면 누구나 받는다.**
@@ -92,7 +92,7 @@ const Chapter = (() => {
     let paras, cut;
     if (lens.length) {
       /* 나눈 판 — 무료 문단만 들어 있고 잠긴 자리는 길이(hidden)만 있다.
-         구독한 사람에게는 content-paid.js 가 따로 내려오고 opts.paid 로 들어온다. */
+         값을 치른 사람에게는 content-paid.js 가 따로 내려오고 opts.paid 로 들어온다. */
       const rest = open && Array.isArray(opts.paid) && opts.paid.length
         ? opts.paid : lens.map((n) => ({ len: n }));
       paras = all.concat(rest);

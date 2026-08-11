@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#0B0B0F">
+<title>사주 한 편 — 내가 주인공인 웹툰</title>
+<meta name="description" content="태어난 때를 넣으면 내가 주인공인 웹툰 한 편이 나옵니다. 절기를 초 단위로 계산해 여덟 글자를 세웁니다.">
+
+<!-- 카톡에 링크를 붙였을 때 뜨는 미리보기.
+     og:image 는 반드시 절대 경로여야 한다 — 카카오 미리보기 서버가 상대 경로를 못 읽는다. -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="사주 한 편">
+<meta property="og:title" content="내가 주인공인 사주 웹툰">
+<meta property="og:description" content="태어난 때만 알려주면 됩니다. 이름이 말풍선에 박히는 한 편이 나와요.">
+<meta property="og:image" content="https://gjwnsgh1205-cmd.github.io/ondoryeong-manseryeok/assets/og.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet"
+      href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.css">
+<link rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Nanum+Myeongjo:wght@400;700&display=swap">
+<link rel="stylesheet" href="css/toon.css">
+<link rel="stylesheet" href="css/intro.css">
+</head>
+<body>
+
+<!-- 얼마나 남았는지. 4만 자는 끝이 안 보이면 무섭다. -->
+<div class="bar" id="bar" aria-hidden="true"><i id="bar-fill"></i></div>
+
+<!-- ════════════════════════════════════════════════
+     영상부 — 입장 · 이름 · 생년월일
+     ════════════════════════════════════════════════ -->
+<main class="intro" id="intro">
+  <div class="iv-stage" id="intro-stage"></div>
+</main>
+
+<!-- ════════════════════════════════════════════════
+     로딩 — 명경. 이름이 찍히고 여덟 글자가 새겨진다.
+     ════════════════════════════════════════════════ -->
+<div class="mirror-veil hidden" id="veil" role="status" aria-live="polite" aria-atomic="true">
+  <div class="mv-inner">
+    <div class="mirror">
+      <p class="mv-text" id="veil-text">…</p>
+      <div class="carve" id="veil-carve" aria-hidden="true"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════
+     웹툰부 — 컷이 세로로 쌓인다
+     ════════════════════════════════════════════════ -->
+<main class="toon hidden" id="toon"></main>
+
+<footer class="foot hidden" id="foot">
+  <p class="foot-fine">이 풀이는 명리 이론에 기댄 사기 이해의 도구예요. 의학적 진단이나 심리 치료를 대신하지 않아요.</p>
+  <p class="foot-fine">마음이 많이 힘든 날에는 <b>109</b>(자살예방 상담) 또는 <b>1577-0199</b>(정신건강 위기상담)로
+    전화할 수 있어요. 24시간 열려 있어요.</p>
+  <div class="foot-acts">
+    <button type="button" id="btn-again">다른 사람 보기</button>
+  </div>
+  <p class="foot-ai">일러스트는 생성형 AI(gpt-image-2)로 제작했습니다.</p>
+</footer>
+
+<script src="js/vendor/astronomy.browser.min.js"></script>
+<script src="js/vendor/korean-lunar.min.js"></script>
+<script src="js/manseryeok.js"></script>
+<script src="js/josa.js"></script>
+<script src="js/content.js"></script>
+<script src="js/report.js"></script>
+<script src="js/toon.js"></script>
+<script src="js/story.js"></script>
+<script src="js/intro.js"></script>
+<script src="js/story-app.js"></script>
+</body>
+</html>

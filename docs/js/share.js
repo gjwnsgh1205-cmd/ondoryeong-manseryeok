@@ -23,7 +23,7 @@ const Share = (() => {
     const u = new URL(location.href);
     u.hash = '';
     u.search = '';
-    // /deep.html 등 어디서 눌러도 본체로 보낸다
+    // 어느 경로에서 눌러도 본체로 보낸다 (예전엔 /deep.html 이 따로 있었다)
     u.pathname = u.pathname.replace(/[^/]*$/, 'index.html');
     return u;
   }
