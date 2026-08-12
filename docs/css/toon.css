@@ -1,0 +1,283 @@
+/* ============================================================
+   toon.css — 웹툰 화면.
+
+   기준은 스마트폰이다. PC 는 가운데 세로 띠로 본다 — 웹툰 뷰어가 다 그렇다.
+   가로로 넓히면 컷이 우스워지고 글줄이 길어져 둘 다 나빠진다.
+
+   색은 두 벌이다.
+     어둠  scene / beat / card  — 캐릭터가 말하는 자리
+     빛    prose / chart        — 내가 읽는 자리
+   이 둘이 번갈아 지나가는 게 리듬이다.
+   ============================================================ */
+
+:root {
+  --wrap: 480px;              /* 세로 띠 폭. 이보다 넓히지 않는다 */
+  --dark: #0B0B0F;
+  --dark-2: #14141B;
+  --paper: #FBF8F2;           /* 읽는 자리 바탕 */
+  --ink: #1A1D26;             /* 본문 글자. 흰 바탕 16.8:1 */
+  --ink-dim: #4B5160;
+  --gold: #C6A15B;
+  --gold-ink: #846A33;
+  --gold-on-dark: #E9C87A;
+  --red: #C8433A;
+  --line-dark: rgba(255,255,255,.12);
+  --line-lite: rgba(26,29,38,.11);
+  --ease: cubic-bezier(.2,.7,.3,1);
+  --serif: 'Nanum Myeongjo', serif;
+  color-scheme: dark;
+}
+
+/* 장마다 바뀌는 바탕색. js/toon.js 의 watchMood 가 갈아 끼운다.
+   기본값은 첫 장(권두)의 남색이다. */
+:root { --mood: 120 130 210; }
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  /* 바탕에 그 장의 색이 아주 옅게 배어든다. 색을 알아채라고 넣은 게 아니라,
+     장이 바뀌었다는 걸 몸이 먼저 느끼게 하려고 넣은 것이다. */
+  background:
+    radial-gradient(120% 60% at 50% 0%, rgb(var(--mood) / .13), transparent 62%),
+    var(--dark);
+  color: #E8E2D6;
+  font: 16px/1.75 'Pretendard Variable', Pretendard, -apple-system, 'Malgun Gothic', sans-serif;
+  -webkit-text-size-adjust: 100%;
+  overflow-x: hidden;
+  transition: background-color 1.6s var(--ease);
+}
+
+/* 뒤에서 흐르는 부적. 화면에 고정이고 아무것도 안 막는다. */
+.ambient {
+  position: fixed; inset: 0; z-index: 0;
+  pointer-events: none;
+  opacity: .9;
+}
+.toon, .intro, .foot, .bar { position: relative; z-index: 1; }
+
+/* ── 마지막 장 — 흰 데로 걸어 나온다 ────────────────
+   여덟 장을 어둠 속에서 지나오다가, 발문에서 바탕이 통째로 밝아진다.
+   이 한 번의 전환이 "다 읽었다" 를 몸으로 알려준다. 그래서 딱 한 번만 쓴다. */
+html.is-lit body {
+  background:
+    radial-gradient(120% 60% at 50% 0%, rgb(var(--mood) / .18), transparent 62%),
+    #F3EFE6;
+  color: var(--ink);
+}
+/* 이 한 줄을 빠뜨려서 마지막 카드 칸만 시커멓게 남았다.
+   body 를 밝게 해도 그 위에 얹힌 .toon 이 var(--dark) 를 깔고 있으면 아무 소용이 없다. */
+html.is-lit .toon { background: transparent; }
+html.is-lit .cut-beat { background: transparent; }
+html.is-lit .beat-line { color: var(--gold-ink); }
+html.is-lit .cut-card {
+  background: radial-gradient(120% 70% at 50% 30%, rgba(198,161,91,.14), transparent 70%);
+}
+html.is-lit .card {
+  border-color: rgba(154,122,56,.4);
+  background: rgba(255,255,255,.6);
+  box-shadow: 0 .6rem 2rem rgba(94,74,34,.10), inset 0 0 3rem rgba(198,161,91,.06);
+}
+html.is-lit .cd-name { color: #2A2620; }
+html.is-lit .cd-birth, html.is-lit .cd-col b { color: var(--gold-ink); }
+html.is-lit .cd-col b { background: rgba(198,161,91,.14); border-color: rgba(154,122,56,.28); }
+html.is-lit .cd-sub, html.is-lit .cd-term { color: #6E6961; }
+html.is-lit .cd-tail { color: #3A3630; }
+html.is-lit .cd-save { color: var(--gold-ink); border-color: rgba(154,122,56,.42); }
+html.is-lit .cd-save:hover { background: var(--gold-ink); color: #fff; }
+html.is-lit .toon { box-shadow: 0 0 0 1px rgba(26,29,38,.06); }
+html.is-lit .foot { background: #EAE4D8; }
+html.is-lit .foot-fine { color: #6E6961; }
+html.is-lit .foot-fine b { color: #3A3630; }
+html.is-lit .foot-acts button { color: #3A3630; border-color: rgba(26,29,38,.16); }
+html.is-lit .ambient { opacity: .5; }
+button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+img, video { max-width: 100%; display: block; }
+
+/* 세로 띠. 모든 컷이 이 안에 들어간다. */
+.toon {
+  width: 100%; max-width: var(--wrap);
+  margin: 0 auto;
+  background: var(--dark);
+  /* PC 에서 띠 밖과 구분되게 — 웹툰 뷰어의 그 느낌 */
+  box-shadow: 0 0 0 1px rgba(255,255,255,.06);
+}
+
+/* ── 컷 공통 ─────────────────────────────────────────
+   화면에 들어올 때 떠오른다. 한 번 뜬 컷은 다시 숨기지 않는다 —
+   위로 스크롤할 때마다 깜빡이면 성가시다. */
+.cut { position: relative; opacity: 0; transform: translateY(14px); }
+.cut.is-in { opacity: 1; transform: none; transition: opacity .55s var(--ease), transform .55s var(--ease); }
+
+/* ══ 어둠 — scene ══════════════════════════════════ */
+.cut-scene {
+  min-height: 78svh;
+  display: grid; grid-template-rows: 1fr auto;
+  background: var(--dark);
+  overflow: hidden;
+}
+.cut-bg {
+  grid-area: 1 / 1 / 3 / 2;
+  width: 100%; height: 100%; object-fit: cover;
+  aspect-ratio: 941 / 1672;
+}
+/* 아래쪽을 어둡게 눌러 말풍선 글자가 그림 위에서도 읽히게 한다.
+   그림 하단 1/3 을 비워 그리게 했지만, 그림마다 밝기가 달라 이 겹이 있어야 안전하다. */
+.cut-shade {
+  grid-area: 1 / 1 / 3 / 2;
+  background: linear-gradient(180deg, transparent 38%, rgba(11,11,15,.72) 68%, rgba(11,11,15,.96) 100%);
+}
+.bubbles {
+  grid-area: 2 / 1 / 3 / 2; position: relative; z-index: 2;
+  padding: 1rem 1.1rem 2.2rem;
+  display: grid; gap: .55rem; justify-items: start;
+}
+
+/* 말풍선. 만화 꼴 — 왼쪽 아래에 꼬리가 붙는다. */
+.bub {
+  position: relative; margin: 0;
+  max-width: 88%;
+  padding: .72rem 1rem;
+  background: #FFFFFF; color: #16161C;
+  border-radius: 16px;
+  font-size: 1.02rem; line-height: 1.6; font-weight: 500;
+  box-shadow: 0 .5rem 1.4rem rgba(0,0,0,.45);
+  opacity: 0; transform: translateY(10px) scale(.97);
+}
+.is-in .bub { animation: bubIn .42s var(--ease) var(--d, 0ms) both; }
+@keyframes bubIn {
+  from { opacity: 0; transform: translateY(10px) scale(.97); }
+  to   { opacity: 1; transform: none; }
+}
+.bub::after {
+  content: ''; position: absolute; left: 1.4rem; bottom: -9px;
+  border: 9px solid transparent; border-top-color: #FFFFFF; border-bottom: 0;
+}
+.bub b { color: var(--gold-ink); font-weight: 700; }
+
+/* ══ 어둠 — beat ═══════════════════════════════════
+   검은 화면에 한 줄. 장과 장 사이의 숨이다. */
+.cut-beat {
+  min-height: 42svh;
+  display: grid; place-items: center;
+  padding: 3rem 1.4rem;
+  background: var(--dark);
+}
+.beat-line {
+  margin: 0; text-align: center;
+  font-family: var(--serif);
+  font-size: 1.35rem; line-height: 1.7; letter-spacing: .01em;
+  color: var(--gold-on-dark);
+  text-wrap: balance;
+}
+
+/* ══ 어둠 — 주인공 카드 ════════════════════════════ */
+.cut-card {
+  padding: 3.2rem 1.2rem;
+  background: radial-gradient(120% 70% at 50% 30%, #1A1622, var(--dark) 70%);
+  display: grid; gap: 1rem; justify-items: center;
+}
+.card {
+  width: 100%; max-width: 21rem;
+  padding: 2.2rem 1.4rem 2rem;
+  text-align: center;
+  border: 1px solid rgba(198,161,91,.42);
+  border-radius: 14px;
+  background: rgba(255,255,255,.03);
+  box-shadow: inset 0 0 3rem rgba(198,161,91,.06);
+}
+.cd-name {
+  margin: 0 0 .5rem; font-family: var(--serif);
+  font-size: 2rem; letter-spacing: .34em; text-indent: .34em;   /* 자간을 벌리면 각인처럼 보인다 */
+  color: #F4EFE4;
+}
+.cd-birth { margin: 0; font-size: 1rem; color: var(--gold-on-dark); font-variant-numeric: tabular-nums; }
+.cd-sub { margin: .2rem 0 0; font-size: .8rem; color: #9A9385; }
+.cd-board { display: flex; gap: .5rem; justify-content: center; margin: 1.3rem 0 .9rem; }
+.cd-col { display: grid; gap: .28rem; }
+.cd-col b {
+  display: grid; place-items: center; width: 2.1rem; height: 2.1rem;
+  font-family: var(--serif); font-size: 1.15rem; font-weight: 400;
+  color: var(--gold-on-dark);
+  background: rgba(198,161,91,.10);
+  border: 1px solid rgba(198,161,91,.24);
+  border-radius: 6px;
+}
+.cd-term { margin: 0; font-size: .78rem; color: #8B8477; }
+.cd-tail { margin: 1rem 0 0; font-size: .95rem; color: #D8D2C6; }
+.cd-tail b { color: var(--gold-on-dark); font-weight: 700; }
+.cd-save {
+  padding: .6rem 1.2rem; font-size: .88rem; font-weight: 600;
+  color: var(--gold-on-dark);
+  border: 1px solid rgba(198,161,91,.42); border-radius: 999px;
+  transition: background .2s var(--ease), color .2s var(--ease);
+}
+.cd-save:hover { background: var(--gold-on-dark); color: #16130A; }
+
+/* ══ 빛 — prose ════════════════════════════════════
+   읽는 자리다. 흰 종이에 검은 글. 여기만 밝다. */
+/* 읽는 칸에도 그 장의 색이 위쪽에만 아주 옅게 배어든다.
+   흰 종이가 어두운 배경 위에 뚝 떨어져 있으면 두 세계가 되는데,
+   위 가장자리에 색이 한 겹 물려 있으면 같은 장면 안에 있는 종이가 된다. */
+.cut-prose {
+  background:
+    linear-gradient(180deg, rgb(var(--mood) / .09), transparent 22%),
+    var(--paper);
+  color: var(--ink);
+  padding: 2.4rem 1.35rem 2.6rem;
+  /* 종이의 위아래 경계에 그 장의 색으로 실선 하나. 장이 바뀌면 이 선 색도 바뀐다. */
+  border-top: 1px solid rgb(var(--mood) / .28);
+  border-bottom: 1px solid rgb(var(--mood) / .18);
+}
+.cut-chart { border-top: 1px solid rgb(var(--mood) / .28); }
+.pr-t {
+  margin: 0 0 .7rem;
+  font-family: var(--serif); font-size: 1.5rem; line-height: 1.45;
+  color: var(--gold-ink); text-wrap: balance;
+  /* 어절 단위로 끊기게. "뿌리/부터" 처럼 갈라지면 제목이 우스워진다 */
+  word-break: keep-all;
+}
+.pr-lead {
+  margin: 0 0 1.3rem; padding-left: .8rem;
+  border-left: 2px solid var(--gold);
+  font-size: .95rem; color: var(--ink-dim); line-height: 1.7;
+  word-break: keep-all;
+}
+.pr-p {
+  margin: 0 0 1.15rem;
+  font-size: 1.02rem; line-height: 1.95; color: var(--ink);
+  word-break: keep-all;
+}
+.pr-p:last-child { margin-bottom: 0; }
+.pr-p b { color: var(--gold-ink); font-weight: 700; }
+
+/* ══ 빛 — chart ════════════════════════════════════ */
+.cut-chart {
+  background: var(--paper); color: var(--ink);
+  padding: 2rem 1.35rem 2.4rem;
+  text-align: center;
+}
+.ch-board { display: flex; gap: .55rem; justify-content: center; margin: 1.2rem 0 1rem; }
+.ch-col { display: grid; gap: .3rem; }
+.ch-col b {
+  display: grid; place-items: center; width: 3rem; height: 3rem;
+  font-family: var(--serif); font-size: 1.5rem; font-weight: 400;
+  color: var(--gold-ink);
+  background: #EDE6D6; border-radius: 8px;
+}
+.ch-tag { font-size: .72rem; color: var(--ink-dim); font-style: normal; }
+.ch-foot { margin: 0; font-size: .88rem; color: var(--ink-dim); line-height: 1.7; word-break: keep-all; }
+
+/* ══ 진행 표시 ═════════════════════════════════════
+   얼마나 남았는지 모르면 4만 자는 무섭다. 맨 위 한 줄로만 알려준다. */
+.bar { position: fixed; top: 0; left: 0; right: 0; height: 3px; z-index: 40; background: rgba(255,255,255,.07); }
+.bar i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--gold), var(--gold-on-dark)); }
+
+@media (min-width: 520px) {
+  .bar { left: 50%; transform: translateX(-50%); max-width: var(--wrap); }
+}
+
+/* ── 모션을 줄여달라면 ───────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .cut { opacity: 1; transform: none; transition: none; }
+  .is-in .bub { animation: none; opacity: 1; transform: none; }
+}

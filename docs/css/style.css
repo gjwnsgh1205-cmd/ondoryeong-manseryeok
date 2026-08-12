@@ -1,0 +1,1677 @@
+/* ══════════════════════════════════════════════════════════
+   온도령 — 한지(韓紙)
+
+   원래는 밤하늘이었다. 남색 바탕에 놋쇠 각인.
+   보기엔 좋았는데 글이 안 읽혔다. 이 앱은 결국 읽히려고 있는 것이라
+   바탕을 흰 종이로 내렸다.
+
+   흰 종이 위에 한지 한 겹을 카드로 깔고, 글씨는 먹, 각인은 놋쇠다.
+   금색은 두 갈래로 나눠 쓴다 — 글자로 읽히는 금(--gold-ink)은 어둡게 눌러
+   대비를 확보하고, 테두리·그라데이션의 금(--gold 계열)은 밝게 둔다.
+   흰 바탕에서 밝은 금을 글자로 쓰면 2.3:1 밖에 안 나온다.
+   ══════════════════════════════════════════════════════════ */
+
+:root {
+  /* 종이 — 흰 바탕에 한지 한 겹 */
+  --ink-0: #FFFFFF;   /* 본문 바탕 */
+  --ink-1: #FBF8F2;   /* 한 겹 내린 면 */
+  --ink-2: #F5F1E7;   /* 카드 */
+  --ink-3: #EDE6D6;   /* 카드 안의 칸 */
+  --line:  rgba(154, 122, 56, 0.28);
+  --line-soft: rgba(26, 29, 38, 0.11);
+
+  /* 놋쇠 — 테두리와 그라데이션에 쓴다. 글자로는 쓰지 마라 */
+  --gold-lit:  #E0C482;
+  --gold:      #C09A50;
+  --gold-deep: #9A7A38;
+  /* 글자로 읽히는 금. 흰 바탕 5.13:1, 한지 카드(#F5F1E7) 위 4.55:1 */
+  --gold-ink:  #846A33;
+  /* 금 버튼 위에 얹는 글자 */
+  --on-gold:   #2A2008;
+  /* 금빛 강조 면(rgba(198,161,91,.18~.3)) 위에 얹는 금 글씨.
+     합성된 배경이 #EDE3CE 언저리라 --gold-ink 로는 3.78:1 밖에 안 나온다. */
+  --gold-on-tint: #6B5528;
+
+  /* 먹 */
+  --paper:     #1A1D26;  /* 본문. 흰 바탕 16.8:1 */
+  --paper-dim: #4B5160;  /* 보조. 흰 바탕 7.94:1, 카드 위 7.04:1 */
+  --paper-far: #686E7D;  /* 잔글씨. 흰 바탕 5.10:1, 카드 위 4.52:1 */
+
+  /* 오행 — 정통 오색을 흰 종이에서 읽히도록 명도만 눌렀다 */
+  --el-0: #2E7A5B;  /* 木 청 */
+  --el-1: #B23F2B;  /* 火 적 */
+  --el-2: #8A6925;  /* 土 황 */
+  --el-3: #59677A;  /* 金 백 */
+  --el-4: #2B5384;  /* 水 흑 */
+  /* 어두운 판에서는 水만 글자로 쓸 때 대비가 모자라 따로 밝은 변형을 뒀다.
+     흰 판에서는 다섯 색 전부 AA 를 넘겨서 갈아 끼울 것이 없다. 이름은 남겨 둔다. */
+  --el-4-text: #2B5384;
+
+  --ok:   #2E7A5B;
+  --warn: #9E5E29;
+
+  --serif: 'Nanum Myeongjo', 'AppleMyungjo', Batang, '바탕', 'Songti SC', 'Noto Serif KR', serif;
+  --sans: 'Pretendard Variable', 'Pretendard', -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo',
+          'Malgun Gothic', '맑은 고딕', system-ui, sans-serif;
+
+  --wrap: 34rem;
+  --r: 14px;
+  --ease: cubic-bezier(.22, .61, .36, 1);
+}
+
+/* ── 리셋 ─────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--ink-0);
+  color: var(--paper);
+  font-family: var(--sans);
+  font-size: 16px;
+  line-height: 1.75;
+  letter-spacing: -0.005em;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+h1, h2, h3, h4, p, ul, ol, figure, dl, dt, dd { margin: 0; }
+ul { padding: 0; list-style: none; }
+button { font: inherit; color: inherit; cursor: pointer; border: 0; background: none; }
+input, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--gold-lit); outline-offset: 3px; border-radius: 4px; }
+.hidden { display: none !important; }
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+
+/* ── 바탕 ─────────────────────────────────────────────── */
+.sky {
+  position: fixed; inset: 0; z-index: 0;
+  width: 100%; height: 100%;
+  pointer-events: none;
+  /* 캔버스가 못 뜨더라도 바탕은 종이로 보이게 */
+  background:
+    radial-gradient(120% 80% at 50% -10%, #FCF8F0 0%, transparent 62%),
+    radial-gradient(90% 60% at 85% 110%, #F7F2E6 0%, transparent 58%),
+    var(--ink-0);
+}
+
+#app { position: relative; z-index: 1; }
+
+/* ══════════════════════════════════════════════════════
+   문 앞
+   ══════════════════════════════════════════════════════ */
+/* 폼이 길어서 화면 가운데 정렬하면 도령이 위로 밀려 나간다.
+   캐릭터가 이 앱의 첫인상이니 위에서부터 쌓고, 넘치면 스크롤로 흐르게 둔다. */
+.gate {
+  min-height: 100svh;
+  max-width: var(--wrap);
+  margin: 0 auto;
+  padding: max(1.75rem, env(safe-area-inset-top)) 1.5rem 3.5rem;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: flex-start;
+  gap: 1.25rem;
+  text-align: center;
+}
+
+.gate-hero { width: min(30%, 7.5rem); }
+.dr-gate { position: relative; }
+
+.gate-copy { display: grid; gap: .75rem; }
+.eyebrow {
+  font-size: .74rem; letter-spacing: .34em; text-transform: uppercase;
+  color: var(--gold-ink); font-weight: 600;
+}
+.gate-title {
+  font-family: var(--serif);
+  font-size: clamp(2.15rem, 10vw, 3.2rem);
+  line-height: 1.18; font-weight: 400;
+  letter-spacing: -0.02em;
+  color: var(--paper);
+  text-wrap: balance;
+}
+.gate-title::after {
+  content: ''; display: block;
+  width: 2.5rem; height: 1px; margin: .85rem auto 0;
+  background: linear-gradient(90deg, transparent, var(--gold), transparent);
+}
+.gate-sub { color: var(--paper-dim); font-size: .92rem; line-height: 1.8; text-wrap: balance; }
+.gate-copy { gap: .55rem; }
+
+/* 화면에 들어가면 가운데, 넘치면 위에서부터.
+   justify-content:center 는 넘칠 때 위쪽을 잘라먹으니 auto 마진을 쓴다. */
+.gate::before { content: ''; margin-top: auto; }
+.gate::after  { content: ''; margin-bottom: auto; }
+
+/* 세로로 넉넉하면 도령을 크게 보여준다 */
+@media (min-height: 58rem) {
+  .gate { gap: 1.6rem; }
+  .gate-hero { width: min(38%, 9.5rem); }
+}
+
+/* ── 입력 ─────────────────────────────────────────────── */
+.gate-form {
+  width: 100%;
+  display: grid; gap: 1.1rem;
+  padding: 1.6rem 1.35rem;
+  background: linear-gradient(180deg, #FFFFFF, var(--ink-2));
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  backdrop-filter: blur(14px);
+  box-shadow: 0 .75rem 2rem rgba(94,74,34,.10), 0 1px 2px rgba(94,74,34,.06);
+}
+
+/* 세그먼트 (양력/음력, 성별) */
+.cal-seg, .sex-seg {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 4px;
+  padding: 4px;
+  background: var(--ink-3);
+  border: 1px solid var(--line-soft);
+  border-radius: 10px;
+}
+.cal-seg label, .sex-seg label { position: relative; display: block; }
+/* inset 을 빼면 정적 위치에서 시작한다. 부모가 text-align:center 라
+   라디오가 라벨 한가운데서 출발해 width:100% 만큼 오른쪽으로 삐져나간다. */
+.cal-seg input, .sex-seg input {
+  position: absolute; inset: 0;
+  opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer;
+}
+.cal-seg span, .sex-seg span {
+  display: block; padding: .6rem; border-radius: 7px;
+  text-align: center; font-size: .9rem; color: var(--paper-dim);
+  transition: background .18s var(--ease), color .18s var(--ease);
+}
+.cal-seg input:checked + span, .sex-seg input:checked + span {
+  background: linear-gradient(180deg, rgba(198,161,91,.24), rgba(198,161,91,.20));
+  /* 세그먼트 바탕(--ink-3) 위에 금빛을 또 얹은 자리라 --gold-ink 로는 4.13:1 이다 */
+  color: var(--gold-on-tint);
+  box-shadow: inset 0 0 0 1px rgba(198,161,91,.35);
+}
+.cal-seg input:focus-visible + span, .sex-seg input:focus-visible + span {
+  outline: 2px solid var(--gold-lit); outline-offset: 2px;
+}
+
+/* 날짜/시각 */
+.date-row { display: grid; grid-template-columns: 1.5fr 1fr 1fr; gap: .55rem; }
+.time-row { display: flex; align-items: flex-end; justify-content: center; gap: .5rem; }
+.time-row .fld-h { width: 6rem; }
+.colon { padding-bottom: .9rem; color: var(--paper-far); font-size: 1.1rem; }
+
+.fld { position: relative; }
+.fld input {
+  width: 100%;
+  padding: 1.35rem .7rem .55rem;
+  background: var(--ink-3);
+  border: 1px solid var(--line-soft);
+  border-radius: 10px;
+  font-size: 1.12rem; font-variant-numeric: tabular-nums;
+  text-align: center;
+  transition: border-color .18s var(--ease), background .18s var(--ease);
+}
+/* opacity 로 흐리면 색이 반토막 난다. 투명도 대신 색을 직접 정한다.
+   입력칸 배경(--ink-3, #EDE6D6) 대비 4.66:1 로 AA 를 넘긴다. */
+.fld input::placeholder { color: var(--paper-far); opacity: 1; }
+.fld input:focus { outline: none; border-color: var(--gold); background: var(--ink-1); }
+.fld label {
+  position: absolute; top: .45rem; left: 0; right: 0;
+  font-size: .66rem; letter-spacing: .16em;
+  text-align: center; color: var(--paper-far); pointer-events: none;
+}
+/* 숫자 입력의 화살표는 이 폼에선 방해만 된다 */
+.fld input::-webkit-outer-spin-button,
+.fld input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.fld input[type=number] { -moz-appearance: textfield; appearance: textfield; }
+
+/* 체크 */
+.chk { display: flex; align-items: center; gap: .6rem; font-size: .88rem; color: var(--paper-dim); cursor: pointer; }
+.chk input { width: 1.05rem; height: 1.05rem; accent-color: var(--gold); cursor: pointer; }
+.chk-leap { padding-left: .15rem; }
+
+.conv-note {
+  padding: .6rem .8rem;
+  background: rgba(74,118,174,.13);
+  border-left: 2px solid var(--el-4);
+  border-radius: 0 8px 8px 0;
+  font-size: .82rem; color: var(--paper-dim); text-align: left;
+}
+.err { color: #E08A7A; font-size: .85rem; text-align: left; }
+.err:empty { display: none; }
+
+/* CTA */
+.btn-cast {
+  display: grid; gap: .15rem;
+  padding: 1rem;
+  border-radius: 11px;
+  background: linear-gradient(180deg, var(--gold-lit), var(--gold) 55%, var(--gold-deep));
+  color: var(--on-gold);
+  box-shadow: 0 .7rem 1.6rem rgba(198,161,91,.3);
+  transition: transform .16s var(--ease), box-shadow .16s var(--ease), filter .16s var(--ease);
+}
+.btn-cast:hover { transform: translateY(-2px); box-shadow: 0 1rem 2.2rem rgba(198,161,91,.42); }
+.btn-cast:active { transform: translateY(0); filter: brightness(.96); }
+.btn-cast-label { font-size: 1.02rem; font-weight: 700; letter-spacing: .04em; }
+.btn-cast-sub { font-size: .72rem; opacity: .68; font-weight: 500; }
+
+/* 접히는 설명 */
+.gate-more { width: 100%; text-align: left; }
+.gate-more summary {
+  cursor: pointer; list-style: none;
+  padding: .55rem 0; text-align: center;
+  font-size: .82rem; color: var(--paper-far);
+  border-top: 1px solid var(--line-soft);
+}
+.gate-more summary::-webkit-details-marker { display: none; }
+.gate-more summary::after { content: ' ⌄'; color: var(--gold-ink); }
+.gate-more[open] summary::after { content: ' ⌃'; }
+.gate-more-body {
+  display: grid; gap: .7rem; padding: .5rem 0 0;
+  font-size: .82rem; line-height: 1.8; color: var(--paper-far);
+}
+
+/* ══════════════════════════════════════════════════════
+   만세력을 넘기는 동안
+   ══════════════════════════════════════════════════════ */
+.veil {
+  position: fixed; inset: 0; z-index: 60;
+  display: grid; place-items: center;
+  background: var(--ink-0);
+  backdrop-filter: blur(6px);
+  animation: fade .3s var(--ease);
+}
+/* 도령과 명경 사이를 좁힌다. 벌어져 있으면 그림 하나 + 상자 하나로 따로 읽힌다. */
+.veil-inner { display: grid; gap: .7rem; justify-items: center; text-align: center; }
+.dr-veil { width: 6.5rem; }
+.veil-text { font-family: var(--serif); font-size: 1.05rem; color: var(--gold-ink); }
+@keyframes fade { from { opacity: 0 } to { opacity: 1 } }
+
+/* ── 진행 바 ───────────────────────────────────────────
+   맨 위 한 줄. 남은 시간을 숫자로 세지 않는다 — 세면 기다림이 길어진다.
+   너비 하나를 total 만큼 걸어두고 브라우저에 맡긴다. */
+.veil-bar {
+  position: fixed; top: 0; left: 0; right: 0; height: 2px;
+  background: var(--line-soft);
+}
+.veil-bar i {
+  display: block; height: 100%; width: 0;
+  background: linear-gradient(90deg, var(--gold-lit), var(--gold));
+}
+
+/* ── 명경(明鏡) ─────────────────────────────────────────
+   도령이 든 거울. 글자는 여기 안에서만 뜬다.
+   화면 한복판에 글자만 떠 있으면 그냥 로딩 자막인데,
+   테를 두르면 도령이 들고 있는 물건이 된다. 같은 글자라도 장면 안으로 들어온다. */
+.mirror {
+  position: relative;
+  /* 19rem/84vw 로 뒀다가 줄였다. 글자에 비해 너무 넓어 접시처럼 보였다.
+     둥글기도 34% 에서 올렸다 — 납작하면 거울이 아니라 쟁반이다. */
+  width: min(16rem, 78vw);
+  padding: 1.7rem 1.3rem 1.6rem;
+  display: grid; gap: .95rem; justify-items: center;
+  border-radius: 50% / 42%;
+  border: 1px solid var(--line);
+  background:
+    radial-gradient(120% 90% at 50% 30%, rgba(198,161,91,.10), transparent 62%),
+    var(--ink-1);
+  box-shadow: 0 .5rem 1.4rem rgba(94,74,34,.10), inset 0 0 0 4px rgba(255,255,255,.7);
+}
+
+/* 이름이 뜨는 줄만 크게. 이름은 자막이 아니라 새김이다 —
+   본문과 같은 크기로 지나가면 그냥 로딩 문구 한 줄이 된다. */
+.veil-text.is-name {
+  font-size: 1.65rem; letter-spacing: .1em;
+  color: var(--gold-on-tint);
+}
+
+/* 여덟 글자가 새겨지는 칸. 천간 위 지지 아래 — 곧 볼 명식표와 같은 배열이다. */
+.carve { display: flex; gap: .55rem; justify-content: center; }
+.carve-col { display: grid; gap: .3rem; }
+.carve b {
+  display: grid; place-items: center;
+  width: 1.9rem; height: 1.9rem;
+  font-family: var(--serif); font-size: 1.05rem; font-weight: 400;
+  color: var(--gold-on-tint);
+  background: var(--ink-3);
+  border-radius: 6px;
+  /* 새겨지기 전에는 없다. --d 만큼 기다렸다 하나씩 들어온다. */
+  opacity: 0;
+  animation: carveIn .5s var(--ease) var(--d, 0ms) both;
+}
+@keyframes carveIn {
+  from { opacity: 0; transform: scale(.82); filter: blur(3px); }
+  to   { opacity: 1; transform: none; filter: none; }
+}
+
+/* ══════════════════════════════════════════════════════
+   풀이
+   ══════════════════════════════════════════════════════ */
+.report {
+  max-width: var(--wrap);
+  margin: 0 auto;
+  padding: max(2.5rem, env(safe-area-inset-top)) 1.25rem 3rem;
+  display: grid; gap: 3.5rem;
+}
+
+/* 스크롤 진입 — 모션을 줄인 경우는 파일 맨 끝에서 한꺼번에 끈다 */
+.reveal { opacity: 0; transform: translateY(1.4rem); transition: opacity .7s var(--ease), transform .7s var(--ease); }
+.reveal.seen { opacity: 1; transform: none; }
+
+/* ── 되살린 풀이 안내 ─────────────────────────────────────
+   기기를 나눠 쓰는 일이 있다. 저장된 걸 펼쳤다는 사실과 지우는 길을 맨 위에 밝힌다. */
+.resume-bar {
+  display: flex; align-items: center; justify-content: space-between; gap: .8rem;
+  padding: .6rem .9rem;
+  border: 1px solid var(--line-soft); border-radius: 10px;
+  background: var(--ink-2);
+  font-size: .8rem; color: var(--paper-dim);
+}
+.resume-bar button {
+  flex: none; padding: .3rem .7rem;
+  border: 1px solid var(--line); border-radius: 999px;
+  font-size: .78rem; color: var(--gold-ink);
+  transition: background .16s var(--ease);
+}
+.resume-bar button:hover { background: rgba(198,161,91,.22); }
+
+/* ── 각인 ─────────────────────────────────────────────── */
+.rp-brand { display: grid; gap: .85rem; justify-items: center; text-align: center; padding: 1.5rem 0 .5rem; }
+/* .dr-frame 이 width:100% 라 부모가 폭을 정해줘야 한다 — 안 그러면 0×0 이 된다 */
+.dr-reveal { width: min(40%, 8rem); margin-bottom: .3rem; }
+.rp-eyebrow { font-size: .72rem; letter-spacing: .3em; color: var(--gold-ink); text-transform: uppercase; }
+.rp-name {
+  font-family: var(--serif);
+  font-size: clamp(2.1rem, 9.5vw, 2.9rem);
+  font-weight: 400; line-height: 1.28; letter-spacing: -0.015em;
+  color: var(--gold-ink);
+  text-wrap: balance;
+  
+}
+.rp-headline { font-family: var(--serif); font-size: 1.02rem; color: var(--paper); line-height: 1.8; text-wrap: balance; }
+.rp-stats { display: flex; flex-wrap: wrap; gap: .45rem; justify-content: center; margin-top: .4rem; }
+.stat {
+  padding: .34rem .72rem;
+  background: var(--ink-1);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: .76rem; color: var(--paper-dim);
+  font-variant-numeric: tabular-nums;
+}
+.stat b { color: var(--gold-ink); font-weight: 600; }
+
+/* ══════════════════════════════════════════════════════
+   탭
+
+   예전엔 一二三四五 번호가 붙은 일곱 덩이가 한 줄로 이어졌다.
+   번호가 뜻하는 게 없어서(순서 말고는) 표지 구실을 못 했고,
+   아래로 갈수록 힘이 빠졌다. 넷으로 갈라 각자 첫 화면을 갖게 했다.
+
+   390px 에서 넷이 한 줄에 들어가는 게 상한이다. 다섯이면 글자가 뭉개진다.
+   ══════════════════════════════════════════════════════ */
+.tabs {
+  position: sticky; top: 0; z-index: 5;
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  gap: 2px;
+  /* .report 가 gap:3.5rem 짜리 그리드다. 탭은 그 간격을 안 쓰고 판에 바짝 붙어야
+     "이 탭을 열었다" 가 읽힌다. 음수 마진으로 그리드 간격을 도로 당긴다. */
+  margin: 0 -1.25rem -2.2rem;
+  padding: .5rem 1.25rem .55rem;
+  /* color-mix 는 쓰지 않는다. 브라우저가 computed 값을 color(srgb 1 1 1 / .88) 로
+     돌려주는데, 이 꼴을 읽는 도구가 흔치 않다 — 우리 대비 계측기도 이걸 거의 검정으로
+     읽어 멀쩡한 탭을 2.06:1 로 잡았다. rgba 로 적으면 그런 일이 없다. */
+  background: rgba(255, 255, 255, .90);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--line-soft);
+}
+.tabs button {
+  padding: .62rem .2rem;
+  border-radius: 9px;
+  font-size: .84rem; font-weight: 500;
+  color: var(--paper-dim);
+  white-space: nowrap;
+  transition: color .16s var(--ease), background .16s var(--ease);
+}
+.tabs button[aria-selected="true"] {
+  background: rgba(198,161,91,.20);
+  /* 금빛 면 위라 --gold-ink 로는 대비가 모자란다 */
+  color: var(--gold-on-tint);
+  font-weight: 600;
+}
+.tabs button:not([aria-selected="true"]):hover { color: var(--paper); }
+
+/* 폭이 아주 좁으면(작은 기기·큰 글꼴) 글자를 줄이는 대신 두 줄로 접는다 */
+@media (max-width: 21rem) {
+  .tabs { grid-template-columns: repeat(2, 1fr); gap: 3px; }
+}
+
+.pane[hidden] { display: none; }
+.pane { display: grid; gap: 2.6rem; }
+/* 탭 막대가 sticky 라, 판으로 스크롤하면 첫 줄이 막대 뒤로 들어간다.
+   판 안의 어떤 요소로 뛰어도 막대 높이만큼 비워둔다. */
+.pane > * { scroll-margin-top: 4.2rem; }
+
+/* 탭을 열면 맨 위에 뜨는 한 줄. 이 탭이 무엇을 말해주는지 여기서 잡힌다. */
+.pane-sub {
+  font-size: .88rem; line-height: 1.75;
+  color: var(--paper-dim);
+  margin-top: -1.1rem;          /* 탭 바에 바짝 붙인다 */
+  padding-bottom: .9rem;
+  border-bottom: 1px solid var(--line-soft);
+  text-wrap: pretty; word-break: keep-all;
+}
+
+/* ── 섹션 머리 ───────────────────────────────────────── */
+.rp-sec { display: grid; gap: 1.15rem; }
+.rp-head { display: grid; gap: .4rem; }
+.rp-head h3, .sec-t {
+  font-family: var(--serif); font-size: 1.45rem; font-weight: 400;
+  color: var(--paper); letter-spacing: -0.01em;
+}
+/* 한 탭 안에 덩이가 둘일 때(사주팔자 = 명식표 + 오행) 쓰는 작은 머리 */
+.sec-t { font-size: 1.2rem; }
+.sec-lead { font-size: .86rem; line-height: 1.75; color: var(--paper-far); margin-top: -.7rem; }
+.sec-note { font-size: .8rem; line-height: 1.7; color: var(--paper-far); text-wrap: pretty; }
+.rp-lead { font-size: .87rem; line-height: 1.8; color: var(--paper-far); text-wrap: pretty; }
+
+/* ── 명식 보드 ───────────────────────────────────────── */
+.board { display: grid; grid-template-columns: repeat(4, 1fr); gap: .5rem; }
+.col { display: grid; gap: .4rem; text-align: center; }
+.col-tag { font-size: .68rem; letter-spacing: .1em; color: var(--paper-far); }
+.glyph {
+  /* app.js 가 --gl:var(--el-N) 을 인라인으로 건다. var() 치환은 이 칸에서 끝나므로
+     水 글자를 밝히려면 자식이 아니라 여기서 --el-4 를 갈아 끼워야 한다.
+     덩달아 밝아지는 건 1px 테두리뿐이라 오행 정통색이 상하지 않는다. */
+  --el-4: var(--el-4-text);
+  position: relative;
+  display: grid; place-items: center; gap: .1rem;
+  aspect-ratio: 1;
+  border-radius: 11px;
+  border: 1px solid var(--gl, var(--line));
+  background: linear-gradient(180deg, var(--ink-1), var(--ink-2));
+}
+.glyph-han { font-family: var(--serif); font-size: clamp(1.5rem, 7.5vw, 2rem); line-height: 1; color: var(--gl, var(--paper)); }
+.glyph-kor { font-size: .66rem; color: var(--paper-far); }
+.col-sip { font-size: .66rem; color: var(--paper-dim); min-height: 1.1em; }
+.col-hidden { font-size: .6rem; color: var(--paper-far); letter-spacing: .04em; min-height: 1em; }
+
+/* 일주 — 이 사람 자신이다 */
+.col-me .glyph-stem {
+  box-shadow: 0 0 0 1px var(--gold), 0 0 1.6rem rgba(198,161,91,.3);
+  background: linear-gradient(180deg, rgba(198,161,91,.30), var(--ink-2));
+}
+.col-me .col-tag { color: var(--gold-ink); }
+.col-empty { opacity: .32; }
+
+.board-foot { font-size: .78rem; color: var(--paper-far); line-height: 1.75; }
+
+/* ── 기질 ─────────────────────────────────────────────── */
+.nature { display: grid; gap: 1rem; }
+.nature-body {
+  font-family: var(--serif); font-size: 1.02rem; line-height: 1.95;
+  color: var(--paper); text-wrap: pretty;
+}
+/* "이런 식이지" — 추상적인 풀이 뒤에 붙는 구체적인 장면.
+   이 한 줄이 "어떻게 알았지" 하고 멈칫하게 만든다. */
+.nature-eg, .cn-eg {
+  display: grid; gap: .2rem;
+  padding: .75rem .9rem; border-radius: 10px;
+  background: var(--ink-2);
+  border-left: 2px solid var(--gold-deep);
+  font-size: .89rem; line-height: 1.8; color: var(--paper);
+}
+.nature-eg i, .cn-eg i {
+  font-style: normal; font-size: .68rem; letter-spacing: .12em; color: var(--gold-ink);
+}
+.cn-eg { margin-top: .1rem; }
+
+.nature-pair { display: grid; gap: .6rem; }
+.np {
+  display: grid; gap: .22rem;
+  padding: .85rem 1rem;
+  border-radius: 11px;
+  background: var(--ink-1);
+  border-left: 2px solid var(--npc, var(--gold));
+}
+.np-label { font-size: .68rem; letter-spacing: .16em; color: var(--npc, var(--gold-ink)); }
+.np-text { font-size: .92rem; line-height: 1.75; color: var(--paper); }
+/* 강약은 어림값이다. 그 사실을 같은 카드 안에서 작게 덧붙인다 */
+.np-note { font-size: .76rem; line-height: 1.7; color: var(--paper-far); padding-top: .2rem; }
+
+/* ── 오행 저울 ───────────────────────────────────────── */
+.oheng { display: grid; gap: 1.1rem; justify-items: center; }
+.oheng svg { width: min(100%, 18rem); height: auto; overflow: visible; }
+/* 그림의 오행 이름표는 fill="var(--el-N)" 로 붙는다. 글자에만 밝은 水를 물려주고
+   같은 그림의 점(<circle>)은 정통색 그대로 둔다. */
+.oheng svg text { --el-4: var(--el-4-text); }
+.oheng-legend { display: grid; grid-template-columns: repeat(5, 1fr); gap: .3rem; width: 100%; }
+.ol { display: grid; gap: .18rem; justify-items: center; text-align: center; }
+.ol-dot { width: .6rem; height: .6rem; border-radius: 50%; background: var(--oc); box-shadow: 0 0 .6rem var(--oc); }
+.ol-han { font-family: var(--serif); font-size: .95rem; color: var(--oc); }
+/* 여기선 점과 글자가 같은 --oc 를 나눠 쓰는데, --oc 는 .ol 에서 이미 색으로 굳는다.
+   점은 정통색을 지켜야 하니 글자만 따로 집는 수밖에 없다.
+   다섯째 칸이 水다 (Manse.ELEMENTS 순서 木火土金水, app.js 가 이 순서로 찍는다). */
+.oheng-legend .ol:nth-child(5) .ol-han { color: var(--el-4-text); }
+.ol-num { font-size: .7rem; color: var(--paper-far); font-variant-numeric: tabular-nums; }
+.oheng-foot { font-size: .84rem; line-height: 1.8; color: var(--paper-dim); }
+
+/* ── 대운 곡선 ───────────────────────────────────────── */
+/* 글자가 viewBox 단위라 폭에 따라 같이 줄어든다 — 가로 스크롤은 마지막 안전장치일 뿐 */
+.curve-wrap { overflow-x: auto; overscroll-behavior-x: contain; }
+.curve-wrap svg { display: block; width: 100%; min-width: 17rem; height: auto; overflow: visible; }
+/* 눈금(나이)과 축 설명은 app.js 가 fill="#6B7387" 로 박아 넣는다 — 변수를 안 타니
+   --paper-far 를 올려도 옛 색 그대로다. 표현 속성은 규칙 하나면 덮인다.
+   간지 이름표는 <g class=cv-pt> 안에 있어서 자식 선택자에 걸리지 않는다. */
+.curve-now {
+  display: grid; gap: .45rem;
+  padding: 1rem 1.1rem;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(198,161,91,.24), var(--ink-1));
+  border: 1px solid var(--line);
+}
+.cn-top { display: flex; align-items: baseline; gap: .55rem; flex-wrap: wrap; }
+.cn-ganji { font-family: var(--serif); font-size: 1.3rem; color: var(--gold-on-tint); }
+.cn-age { font-size: .76rem; color: var(--paper-far); font-variant-numeric: tabular-nums; }
+.cn-label { font-size: .78rem; color: var(--gold-ink); padding: .1rem .5rem; border: 1px solid var(--line); border-radius: 999px; }
+.cn-line { font-family: var(--serif); font-size: .98rem; line-height: 1.85; color: var(--paper); }
+.cn-advice { font-size: .85rem; line-height: 1.75; color: var(--paper-dim); padding-top: .3rem; border-top: 1px dashed var(--line); }
+
+/* ── 오늘 ─────────────────────────────────────────────── */
+.today {
+  display: grid; gap: .9rem;
+  padding: 1.3rem 1.2rem;
+  border-radius: 14px;
+  background: linear-gradient(165deg, #FFFFFF, var(--ink-2));
+  border: 1px solid var(--line);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.7);
+}
+.td-top { display: flex; align-items: center; gap: .7rem; }
+.td-ganji {
+  display: grid; place-items: center;
+  width: 3.1rem; height: 3.1rem; flex: none;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--ink-3);
+  font-family: var(--serif); font-size: 1.25rem; line-height: 1.05;
+  /* 카드 안의 칸(--ink-3)은 한 겹 더 눌린 면이라 --gold-ink 로는 4.13:1 이다 */
+  color: var(--gold-on-tint);
+}
+.td-meta { display: grid; gap: .1rem; }
+.td-date { font-size: .74rem; color: var(--paper-far); font-variant-numeric: tabular-nums; }
+.td-mood { font-family: var(--serif); font-size: 1.15rem; color: var(--paper); }
+.td-line { font-family: var(--serif); font-size: 1rem; line-height: 1.9; color: var(--paper); }
+.td-acts { display: grid; gap: .5rem; }
+.td-act { display: grid; grid-template-columns: 4.2rem 1fr; gap: .6rem; align-items: start; font-size: .87rem; line-height: 1.7; }
+.td-act i { font-style: normal; color: var(--gold-ink); font-size: .72rem; letter-spacing: .06em; padding-top: .22rem; white-space: nowrap; }
+.td-act.is-hold i { color: var(--paper-far); }
+
+/* 오늘 지지가 내 일지와 부딪히거나 맞물리는 날에만 붙는 뱃지 */
+.td-kind {
+  margin-left: auto; align-self: flex-start; flex: none;
+  padding: .2rem .6rem; border-radius: 999px;
+  font-size: .72rem; white-space: nowrap;
+  /* --gold-ink 를 쓰다가 --gold-on-tint 로 내렸다. 이 딱지는 금색 반투명 위에 얹혀서
+     실제 배경이 #EDE3CE 까지 올라간다 — 거기서 --gold-ink 는 4.01:1 로 AA 미달이었다.
+     --gold-on-tint 는 애초에 그런 자리를 위해 만든 색이다. */
+  border: 1px solid var(--line); color: var(--gold-on-tint);
+  background: rgba(198,161,91,.18);
+}
+.td-kind-충 { border-color: rgba(151,95,82,.45); color: #975F52; background: rgba(208,96,76,.10); }
+.td-kind-육합, .td-kind-삼합 { border-color: rgba(74,118,98,.42); color: #4A7662; background: rgba(91,168,138,.12); }
+
+.td-headline {
+  font-family: var(--serif); font-size: 1.22rem; line-height: 1.6;
+  color: var(--gold-ink); text-wrap: balance;
+}
+.td-why { font-size: .93rem; line-height: 1.9; color: var(--paper); }
+.td-air { font-size: .84rem; line-height: 1.75; color: var(--paper-dim); }
+
+/* ── 가려진 자리 ────────────────────────────────────────
+   흐리게(blur)만 처리하면 개발자도구로 그대로 읽힌다. 그래서 실제 글자는
+   DOM 에 넣지 않고, 길이만 흉내 낸 막대를 그린다.
+   글자가 있는 것처럼 보여야 궁금해지므로 줄 끝은 들쭉날쭉하게 둔다. */
+.veiled { display: block; }
+.veiled i {
+  display: block; height: .95em; margin: .28em 0;
+  border-radius: 3px;
+  background: linear-gradient(90deg, rgba(154,122,56,.30), rgba(154,122,56,.14));
+  max-width: 100%;
+}
+.veiled i:last-child { width: 60% !important; }
+.td-one .veiled i, .td-time .veiled i { margin: .2em 0; }
+
+/* 가려진 자리를 여는 단추 — 카드 안에 있어야 "지금 보고 있는 것"과 이어진다 */
+.td-open {
+  width: 100%; padding: .8rem 1rem; border-radius: 11px;
+  background: linear-gradient(180deg, var(--gold-lit), var(--gold) 55%, var(--gold-deep));
+  color: var(--on-gold); font-weight: 700; font-size: .92rem;
+  box-shadow: 0 .5rem 1.2rem rgba(198,161,91,.26);
+  transition: transform .16s var(--ease);
+}
+.td-open:hover { transform: translateY(-2px); }
+
+/* ── 오늘의 점수 ────────────────────────────────────────
+   숫자를 화면에서 가장 크게 둔다. 해석 문장보다 먼저 눈에 들어와야 한다.
+   그리고 그 숫자가 어디서 나왔는지 바로 아래에서 통째로 연다 —
+   근거를 여는 쪽이 유리한 서비스는 계산이 정확한 쪽뿐이다. */
+.score { display: grid; gap: .5rem; }
+.sc-head { display: flex; align-items: baseline; gap: .6rem; }
+.sc-num {
+  font-family: var(--serif); font-size: 3.4rem; line-height: 1;
+  color: var(--gold-ink); font-variant-numeric: tabular-nums;
+  
+}
+.sc-band {
+  padding: .2rem .6rem; border-radius: 999px;
+  border: 1px solid var(--line); background: rgba(198,161,91,.18);
+  font-size: .8rem; color: var(--gold-on-tint);
+}
+.sc-why summary {
+  cursor: pointer; list-style: none;
+  padding: .4rem 0; font-size: .82rem; color: var(--paper-dim);
+  border-bottom: 1px dashed var(--line-soft);
+}
+.sc-why summary::-webkit-details-marker { display: none; }
+.sc-why summary::after { content: ' ⌄'; color: var(--gold-ink); }
+.sc-why[open] summary::after { content: ' ⌃'; }
+.sc-body { display: grid; gap: .35rem; padding-top: .6rem; }
+.sc-row {
+  display: grid; grid-template-columns: 2.6rem 1fr; gap: .6rem; align-items: baseline;
+  font-size: .84rem; line-height: 1.7;
+}
+.sc-d {
+  text-align: right; font-variant-numeric: tabular-nums;
+  font-size: .88rem; color: var(--paper-far);
+}
+.sc-up .sc-d { color: var(--el-0); }
+.sc-down .sc-d { color: var(--el-1); }
+.sc-base .sc-d { color: var(--gold-ink); }
+.sc-t { display: grid; gap: .1rem; color: var(--paper-dim); }
+.sc-t b { font-weight: 500; color: var(--paper); }
+.sc-t i { font-style: normal; font-size: .78rem; color: var(--paper-far); }
+.sc-note {
+  font-size: .76rem; line-height: 1.7; color: var(--paper-far);
+  padding-top: .4rem; border-top: 1px dashed var(--line-soft);
+}
+
+/* ── 이번 이레 ─────────────────────────────────────────
+   오늘 하나만 주면 "그래서 이번 주는" 이 남는다. 막대 일곱 개면 충분하다. */
+.week { display: grid; gap: .5rem; }
+.wk-head { display: flex; align-items: baseline; justify-content: space-between; gap: .5rem; flex-wrap: wrap; }
+.wk-head i { font-style: normal; font-size: .7rem; letter-spacing: .12em; color: var(--paper-far); }
+.wk-head span { font-size: .78rem; color: var(--paper-dim); }
+.wk-head b { color: var(--gold-ink); }
+.wk-bars {
+  display: grid; grid-template-columns: repeat(7, 1fr); gap: .3rem;
+  align-items: end; height: 5.5rem;
+}
+.wk-day { display: grid; grid-template-rows: 1fr auto auto; gap: .2rem; justify-items: center; height: 100%; }
+.wk-bar {
+  width: 100%; min-height: 3px; align-self: end; border-radius: 4px 4px 2px 2px;
+  background: linear-gradient(180deg, rgba(198,161,91,.55), rgba(198,161,91,.18));
+}
+.wk-day.is-today .wk-bar { background: linear-gradient(180deg, var(--gold-lit), var(--gold-deep)); }
+.wk-n { font-size: .68rem; color: var(--paper-far); font-variant-numeric: tabular-nums; min-height: 1em; }
+.wk-day.is-today .wk-n { color: var(--gold-ink); }
+.wk-w { font-size: .7rem; color: var(--paper-far); }
+.wk-day.is-today .wk-w { color: var(--paper); }
+/* .wk-lock 은 이레치 점수를 구독으로 가리던 줄이다. 오늘 탭이 무료가 되며 없앴다. */
+
+/* 지금 어디쯤인가 — 대운(10년) · 올해 · 이번 달을 오늘 위에 얹는 칸.
+   이 축이 없으면 하루가 일진 하나로만 정해져 60일마다 똑같이 돌아온다. */
+.td-flow {
+  display: grid; gap: .5rem;
+  padding: .85rem .95rem; border-radius: 11px;
+  /* 흰 판으로 옮길 때 못 잡은 자리. 어두운 그라데이션이 남아 회색 상자로 떴다.
+     카드 안의 칸이니 한 겹만 눌러 준다. */
+  background: var(--ink-3);
+  border: 1px solid var(--line-soft);
+}
+/* 이 칸은 배경이 한 겹 눌려 있어(--ink-3) --paper-far 로는 4.1:1 이다 */
+.tf-label { font-style: normal; font-size: .68rem; letter-spacing: .14em; color: var(--paper-dim); }
+.tf-tags { display: flex; flex-wrap: wrap; gap: .3rem; }
+.tf-tag {
+  padding: .2rem .55rem; border-radius: 999px;
+  border: 1px solid var(--line); background: var(--ink-2);
+  font-size: .72rem; color: var(--paper-dim); white-space: nowrap;
+}
+.tf-tag b { font-family: var(--serif); font-size: .88rem; font-weight: 400; color: var(--gold-on-tint); }
+.td-flow p { font-size: .89rem; line-height: 1.8; color: var(--paper); }
+.td-flow .tf-year { color: var(--paper-dim); font-size: .85rem; }
+
+.td-kindbox {
+  display: grid; gap: .35rem;
+  padding: .8rem .9rem; border-radius: 10px;
+  background: var(--ink-2); border-left: 2px solid var(--gold);
+  font-size: .88rem; line-height: 1.8;
+}
+.td-kindtip { color: var(--paper-dim); font-size: .84rem; }
+
+/* 일·돈 / 사람 / 몸·마음 — 세 칸으로 갈라야 "오늘 뭘 보라는 건지" 가 잡힌다 */
+.td-three { display: grid; gap: .45rem; }
+.td-one {
+  display: grid; grid-template-columns: 4.2rem 1fr; gap: .6rem; align-items: start;
+  padding: .55rem .7rem; border-radius: 9px;
+  background: var(--ink-2);
+  font-size: .87rem; line-height: 1.7;
+}
+.td-one i {
+  font-style: normal; font-size: .74rem; letter-spacing: .04em;
+  padding-top: .18rem; white-space: nowrap; color: var(--tc, var(--gold));
+}
+.td-one-w { --tc: var(--el-2); }
+.td-one-p { --tc: var(--el-0); }
+.td-one-b { --tc: var(--el-4-text); }
+
+.td-time {
+  display: flex; align-items: baseline; gap: .5rem; flex-wrap: wrap;
+  padding-top: .6rem; border-top: 1px dashed var(--line);
+  font-size: .85rem; line-height: 1.7;
+}
+.td-time i { font-style: normal; font-size: .72rem; color: var(--gold-ink); white-space: nowrap; }
+.td-time b { font-variant-numeric: tabular-nums; color: var(--paper); }
+.td-time span { color: var(--paper-dim); font-size: .82rem; }
+
+.td-watch, .td-good { display: grid; gap: .15rem; font-size: .85rem; line-height: 1.7; color: var(--paper-dim); }
+.td-watch i, .td-good i { font-style: normal; font-size: .7rem; letter-spacing: .1em; color: var(--paper-far); }
+
+.td-foot {
+  display: flex; align-items: center; justify-content: space-between; gap: .6rem;
+  flex-wrap: wrap; padding-top: .7rem; border-top: 1px solid var(--line-soft);
+  font-size: .78rem; color: var(--paper-far);
+}
+.td-streak { color: var(--gold-ink); }
+.td-tomorrow { margin-left: auto; text-align: right; }
+
+/* 예전엔 재방문자에게 오늘을 grid order 로 끌어올렸다.
+   이제는 탭이 있어서 자리를 옮길 게 아니라 어느 탭을 먼저 여는지만 정하면 된다. */
+
+/* ── 잠긴 문 ─────────────────────────────────────────── */
+.ch-list { display: grid; gap: .5rem; }
+.ch-item {
+  display: grid; grid-template-columns: 1.6rem 1fr; gap: .75rem;
+  align-items: start;
+  padding: .95rem 1rem;
+  border-radius: 11px;
+  border: 1px solid var(--line-soft);
+  background: var(--ink-2);
+  text-align: left; width: 100%;
+  transition: border-color .18s var(--ease), background .18s var(--ease);
+}
+.ch-item:hover { border-color: var(--line); background: var(--ink-1); }
+/* 무료 장은 위 섹션으로 데려가는 링크다. 밑줄이 그어지면 깨진 링크처럼 보인다 */
+a.ch-item { text-decoration: none; color: inherit; }
+.ch-open { border-color: rgba(91,168,138,.28); }
+.ch-mark { font-size: .95rem; line-height: 1.6; text-align: center; }
+.ch-open .ch-mark { color: var(--ok); }
+.ch-lock .ch-mark { color: var(--gold-ink); }
+.ch-body { display: grid; gap: .22rem; min-width: 0; }
+.ch-group { font-size: .66rem; letter-spacing: .14em; color: var(--paper-far); }
+.ch-title { font-size: .94rem; line-height: 1.6; color: var(--paper); text-wrap: pretty; }
+.ch-lock .ch-title { color: var(--paper-dim); }
+/* 대괄호로 가린 결론 — 이 한 조각이 궁금해서 열게 된다 */
+.ch-title .blank {
+  display: inline-block;
+  /* 답을 DOM에 안 넣으므로 내용이 없다 — 높이를 직접 줘야 빗금이 보인다 */
+  height: 1.15em; vertical-align: -0.26em;
+  margin: 0 .12rem;
+  border-radius: 4px;
+  background: repeating-linear-gradient(-45deg, rgba(198,161,91,.28) 0 3px, transparent 3px 7px);
+  border: 1px solid rgba(198,161,91,.34);
+  user-select: none;
+}
+.ch-title b { color: var(--gold-ink); font-weight: 600; }
+.ch-teaser { font-size: .8rem; line-height: 1.7; color: var(--paper-far); }
+.ch-answer { font-size: .92rem; line-height: 1.85; color: var(--paper); padding-top: .3rem; }
+
+/* 결제 */
+.unlock {
+  display: grid; gap: 1rem;
+  margin-top: .6rem; padding: 1.3rem 1.2rem;
+  border-radius: 14px;
+  background: linear-gradient(165deg, rgba(198,161,91,.20), var(--ink-2));
+  border: 1px solid var(--line);
+}
+/* 두 갈래 — 달마다 열어두는 것과, 한 번에 제대로 받는 것.
+   값이 다른 이유가 성격이 다르기 때문임을 카드 모양으로도 보이게 갈라 둔다. */
+.tier {
+  display: grid; gap: .7rem;
+  padding: 1.1rem 1rem; border-radius: 12px;
+  background: var(--ink-2);
+  border: 1px solid var(--line-soft);
+}
+.tier-deep { background: var(--ink-1); border-color: var(--line); }
+.tier-head { display: flex; align-items: baseline; justify-content: space-between; gap: .6rem; }
+.tier-name { font-size: .82rem; color: var(--paper-dim); }
+.tier-price {
+  font-size: 1.35rem; font-weight: 700; color: var(--gold-ink);
+  font-variant-numeric: tabular-nums;
+}
+.tier-list { display: grid; gap: .3rem; font-size: .86rem; color: var(--paper); }
+.tier-list li { display: grid; grid-template-columns: 1rem 1fr; gap: .4rem; }
+.tier-list li::before { content: '✦'; color: var(--gold-ink); font-size: .8rem; }
+.tier-lead { font-size: .86rem; line-height: 1.8; color: var(--paper); }
+.tier-anchor {
+  display: flex; flex-wrap: wrap; gap: .5rem;
+  font-size: .75rem; color: var(--paper-far);
+}
+.tier-anchor span { padding: .18rem .5rem; border: 1px solid var(--line-soft); border-radius: 999px; }
+.tier .btn-ghost-gold { justify-self: stretch; text-align: center; }
+
+.unlock-anchor { display: grid; gap: .1rem; font-size: .84rem; }
+.anchor-row {
+  display: flex; justify-content: space-between; gap: 1rem;
+  padding: .42rem 0; color: var(--paper-far);
+  border-bottom: 1px dashed var(--line-soft);
+}
+.anchor-row b { font-weight: 500; font-variant-numeric: tabular-nums; }
+.anchor-us { color: var(--paper); border-bottom: 0; padding-top: .55rem; }
+.anchor-us b { color: var(--gold-ink); font-size: 1.15rem; font-weight: 700; }
+
+.btn-unlock {
+  padding: .95rem 1rem; border-radius: 11px;
+  background: linear-gradient(180deg, var(--gold-lit), var(--gold) 55%, var(--gold-deep));
+  color: var(--on-gold); font-weight: 700; font-size: .98rem;
+  box-shadow: 0 .6rem 1.5rem rgba(198,161,91,.28);
+  transition: transform .16s var(--ease), box-shadow .16s var(--ease);
+}
+.btn-unlock:hover { transform: translateY(-2px); box-shadow: 0 .9rem 2rem rgba(198,161,91,.4); }
+.unlock-note { font-size: .76rem; line-height: 1.7; color: var(--paper-far); text-align: center; }
+
+/* ── 상담 초대 ───────────────────────────────────────── */
+.ask-invite {
+  display: grid; grid-template-columns: 5rem 1fr; gap: 1rem; align-items: center;
+  padding: 1.2rem 1.15rem;
+  border-radius: 14px;
+  background: var(--ink-2);
+  border: 1px solid var(--line-soft);
+}
+.dr-ask { width: 100%; }
+.ask-invite-copy { display: grid; gap: .55rem; min-width: 0; }
+.ask-invite-copy h3 { font-family: var(--serif); font-size: 1.15rem; font-weight: 400; color: var(--paper); }
+.ask-invite-copy p { font-size: .85rem; line-height: 1.75; color: var(--paper-dim); }
+.ask-chips { display: flex; flex-wrap: wrap; gap: .35rem; }
+.chip {
+  padding: .34rem .68rem;
+  border: 1px solid var(--line); border-radius: 999px;
+  font-size: .76rem; color: var(--paper-dim);
+  transition: border-color .16s var(--ease), color .16s var(--ease), background .16s var(--ease);
+}
+.chip:hover, .chip.on { border-color: var(--gold); color: var(--gold-on-tint); background: rgba(198,161,91,.18); }
+
+.btn-ghost-gold {
+  justify-self: start;
+  padding: .62rem 1.1rem; border-radius: 999px;
+  border: 1px solid var(--gold); color: var(--gold-ink); font-size: .88rem;
+  transition: background .16s var(--ease);
+}
+.btn-ghost-gold:hover { background: rgba(198,161,91,.22); }
+
+.rp-actions {
+  display: flex; gap: .6rem; justify-content: center; flex-wrap: wrap;
+  padding-top: 1rem; border-top: 1px solid var(--line-soft);
+}
+.btn-ghost {
+  padding: .58rem 1.05rem; border-radius: 999px;
+  border: 1px solid var(--line-soft); color: var(--paper-dim); font-size: .84rem;
+  transition: border-color .16s var(--ease), color .16s var(--ease);
+}
+.btn-ghost:hover { border-color: var(--line); color: var(--paper); }
+
+/* ══════════════════════════════════════════════════════
+   내 상황 — 여덟 가지
+   여덟 개를 한 화면에 늘어놓되, 대부분 고르기라 손이 덜 간다.
+   번호를 붙인 이유는 "얼마 안 남았다"가 보여야 끝까지 가기 때문이다.
+   ══════════════════════════════════════════════════════ */
+.situation {
+  max-width: var(--wrap); margin: 0 auto;
+  min-height: 100svh;
+  padding: max(1rem, env(safe-area-inset-top)) 1.25rem 2.5rem;
+  display: grid; gap: 1.1rem; align-content: start;
+}
+.sit-top { display: flex; align-items: center; gap: .8rem; padding-bottom: .7rem; border-bottom: 1px solid var(--line-soft); }
+.sit-top h2 { font-family: var(--serif); font-size: 1.15rem; font-weight: 400; }
+.sit-lead { font-size: .88rem; line-height: 1.8; color: var(--paper-dim); }
+.sit-lead b { color: var(--gold-ink); font-weight: 600; }
+
+#sit-fields { display: grid; gap: 1.4rem; }
+.sit-item { display: grid; gap: .55rem; }
+.sit-q { display: grid; grid-template-columns: 1.6rem 1fr; gap: .6rem; align-items: start; }
+.sit-n {
+  display: grid; place-items: center;
+  width: 1.6rem; height: 1.6rem; border-radius: 50%;
+  border: 1px solid var(--line); color: var(--gold-ink);
+  font-size: .74rem; font-variant-numeric: tabular-nums;
+}
+.sit-label { font-size: .98rem; line-height: 1.6; color: var(--paper); }
+.sit-label em { font-style: normal; font-size: .72rem; color: var(--paper-far); }
+.sit-hint { font-size: .8rem; line-height: 1.7; color: var(--paper-far); padding-top: .15rem; }
+
+.situation textarea {
+  width: 100%; padding: .85rem .9rem; border-radius: 11px;
+  background: var(--ink-3); border: 1px solid var(--line-soft);
+  font-size: .94rem; line-height: 1.8; resize: vertical;
+}
+.situation textarea:focus { outline: none; border-color: var(--gold); }
+.situation textarea::placeholder { color: var(--paper-far); }
+
+.sit-opts { display: flex; flex-wrap: wrap; gap: .35rem; }
+.sit-opt {
+  padding: .45rem .8rem; border-radius: 999px;
+  border: 1px solid var(--line-soft); background: var(--ink-2);
+  font-size: .85rem; color: var(--paper-dim);
+  transition: border-color .16s var(--ease), color .16s var(--ease), background .16s var(--ease);
+}
+.sit-opt:hover { border-color: var(--line); color: var(--paper); }
+.sit-opt.on {
+  border-color: var(--gold); color: var(--gold-ink);
+  background: rgba(198,161,91,.22);
+}
+.sit-other {
+  width: 100%; padding: .55rem .8rem; border-radius: 9px;
+  background: var(--ink-3); border: 1px solid var(--line-soft); font-size: .88rem;
+}
+.sit-other:focus { outline: none; border-color: var(--gold); }
+.sit-other::placeholder { color: var(--paper-far); }
+
+.sit-foot { display: grid; gap: .5rem; padding-top: .5rem; }
+.sit-count { font-size: .8rem; color: var(--gold-ink); text-align: center; font-variant-numeric: tabular-nums; }
+
+@media (prefers-reduced-motion: reduce) { .sit-opt { transition: none; } }
+
+/* ══════════════════════════════════════════════════════
+   상담
+   ══════════════════════════════════════════════════════ */
+.consult {
+  max-width: var(--wrap); margin: 0 auto;
+  min-height: 100svh;
+  padding: max(1rem, env(safe-area-inset-top)) 1.25rem 1.5rem;
+  display: grid; grid-template-rows: auto auto 1fr auto auto auto; gap: .9rem;
+  align-content: start;
+}
+.cs-top { display: flex; align-items: center; gap: .8rem; padding-bottom: .7rem; border-bottom: 1px solid var(--line-soft); }
+.cs-top h2 { font-family: var(--serif); font-size: 1.05rem; font-weight: 400; }
+.btn-back { color: var(--paper-dim); font-size: .88rem; }
+.btn-back:hover { color: var(--gold-ink); }
+.cs-name { margin-left: auto; font-size: .76rem; color: var(--gold-ink); }
+
+.topic-strip { display: flex; gap: .4rem; overflow-x: auto; padding-bottom: .3rem; scrollbar-width: none; }
+.topic-strip::-webkit-scrollbar { display: none; }
+.topic-strip .chip { flex: none; white-space: nowrap; }
+
+.chat { display: grid; gap: 1rem; align-content: start; padding: .4rem 0; }
+.turn { display: grid; gap: .3rem; max-width: 88%; }
+.turn-dr { justify-self: start; }
+.turn-me { justify-self: end; text-align: right; }
+.turn-who { font-size: .68rem; letter-spacing: .12em; color: var(--paper-far); }
+.turn-dr .turn-who { color: var(--gold-ink); }
+.bubble {
+  padding: .85rem 1rem; border-radius: 14px;
+  font-size: .94rem; line-height: 1.85;
+  white-space: pre-wrap; overflow-wrap: anywhere; text-align: left;
+}
+.turn-dr .bubble {
+  font-family: var(--serif); font-size: 1rem;
+  background: linear-gradient(165deg, #FFFFFF, var(--ink-1));
+  border: 1px solid var(--line); border-top-left-radius: 4px;
+}
+.turn-me .bubble {
+  background: rgba(198,161,91,.24);
+  border: 1px solid rgba(198,161,91,.28);
+  border-top-right-radius: 4px;
+}
+.turn-halt .bubble { border-color: rgba(208,96,76,.45); background: rgba(208,96,76,.13); }
+
+.dots { display: inline-flex; gap: .28rem; padding: .3rem 0; }
+.dots span {
+  width: .36rem; height: .36rem; border-radius: 50%; background: var(--gold);
+  animation: blink 1.3s var(--ease) infinite;
+}
+.dots span:nth-child(2) { animation-delay: .18s }
+.dots span:nth-child(3) { animation-delay: .36s }
+@keyframes blink { 0%, 60%, 100% { opacity: .25 } 30% { opacity: 1 } }
+
+.pass-box {
+  display: grid; gap: .7rem;
+  padding: 1.1rem;
+  border-radius: 13px;
+  background: linear-gradient(165deg, rgba(198,161,91,.22), var(--ink-2));
+  border: 1px solid var(--line);
+}
+.pass-box p { font-family: var(--serif); font-size: .96rem; line-height: 1.85; }
+.pass-box .unlock-note { font-family: var(--sans); font-size: .76rem; }
+
+.ask-bar {
+  display: grid; grid-template-columns: 1fr auto; gap: .5rem; align-items: end;
+  padding: .5rem; border-radius: 14px;
+  background: var(--ink-2);
+  border: 1px solid var(--line-soft);
+  backdrop-filter: blur(10px);
+}
+.ask-bar textarea {
+  padding: .6rem .7rem; max-height: 8rem;
+  background: none; border: 0; resize: none;
+  font-size: .94rem; line-height: 1.65;
+}
+/* 글상자가 바를 꽉 채워서 아웃라인을 안쪽에 그리면 테두리와 겹쳐 어긋난다.
+   그래서 지우되, 표시를 없애면 키보드로 다니는 사람이 어디 있는지 알 수 없으니
+   바깥 바가 대신 초점을 받은 티를 낸다. */
+.ask-bar textarea:focus { outline: none; }
+.ask-bar:focus-within { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold); }
+.ask-bar textarea::placeholder { color: var(--paper-far); }
+.btn-send {
+  display: grid; place-items: center;
+  width: 2.5rem; height: 2.5rem; border-radius: 10px;
+  background: linear-gradient(180deg, var(--gold-lit), var(--gold-deep));
+  color: var(--on-gold);
+  transition: transform .16s var(--ease), opacity .16s var(--ease);
+}
+.btn-send:hover { transform: scale(1.06); }
+.btn-send:disabled { opacity: .35; cursor: not-allowed; transform: none; }
+.turns-left { font-size: .74rem; color: var(--paper-far); text-align: center; }
+
+/* ══════════════════════════════════════════════════════
+   도령 (그림/영상)
+   ══════════════════════════════════════════════════════ */
+/* 영상에는 알파가 없다. 배경을 지우려 애쓰는 대신 감실(龕室) 창으로 만든다 —
+   도령이 창 안에 서 있는 그림이면, 어두운 바탕이 버그가 아니라 그림의 일부가 된다.
+   창 안쪽 색은 영상 배경(약 #17140B)에 맞춰 두어 이음매가 보이지 않게 했다. */
+.dr-frame {
+  position: relative; width: 100%; aspect-ratio: 480 / 854;
+  overflow: hidden;
+  border-radius: 50% 50% 14px 14px / 32% 32% 3% 3%;
+  background:
+    radial-gradient(ellipse 80% 55% at 50% 22%, #23200f 0%, transparent 70%),
+    linear-gradient(180deg, #17140B 0%, #0A0904 100%);
+  box-shadow:
+    0 0 0 1px rgba(198,161,91,.28),
+    inset 0 0 2.5rem rgba(0,0,0,.35),
+    0 1rem 2.5rem rgba(94,74,34,.18);
+}
+/* 창턱에 걸린 달빛 */
+.dr-frame::after {
+  content: ''; position: absolute; inset: 0;
+  border-radius: inherit; pointer-events: none;
+  background: radial-gradient(ellipse 65% 40% at 50% 8%, rgba(198,161,91,.20), transparent 62%);
+}
+.dr-still, .dr-media {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  transition: opacity .5s var(--ease);
+}
+/* 정지 그림은 자세마다 세로 비가 달라(절하는 그림은 520×1344) cover 로 채우면 머리가 잘린다.
+   창턱에 발을 딛고 선 모양이 되도록 아래를 맞춰 통째로 넣는다. */
+.dr-still { object-fit: contain; object-position: 50% 100%; }
+/* 영상은 480×854 로 창과 비가 같아 잘리는 데가 없다 */
+.dr-media { object-fit: cover; }
+.dr-media { opacity: 0; }
+.dr-frame.playing .dr-media { opacity: 1; }
+.dr-frame.playing .dr-still { opacity: 0; }
+
+/* ══════════════════════════════════════════════════════
+   바닥
+   ══════════════════════════════════════════════════════ */
+.site-footer {
+  position: relative; z-index: 1;
+  max-width: var(--wrap); margin: 0 auto;
+  padding: 2.5rem 1.5rem max(2.5rem, env(safe-area-inset-bottom));
+  display: grid; gap: .6rem;
+  border-top: 1px solid var(--line-soft);
+  font-size: .74rem; line-height: 1.8; color: var(--paper-far); text-align: center;
+}
+.site-footer strong { color: var(--paper-dim); font-variant-numeric: tabular-nums; }
+
+/* ══════════════════════════════════════════════════════
+   너른 화면
+   ══════════════════════════════════════════════════════ */
+@media (min-width: 46rem) {
+  :root { --wrap: 40rem; }
+  .gate { gap: 1.9rem; }
+  /* 창이 세로로 길어졌으니 폭을 키우면 화면 절반을 잡아먹는다 */
+  .gate-hero { width: min(26%, 9.5rem); }
+  .dr-reveal { width: min(28%, 9rem); }
+  .board { gap: .65rem; }
+  .report { gap: 4rem; }
+  /* 여덟 글자가 너무 커지지 않게 — 데이터지 배너가 아니다.
+     .glyph 가 aspect-ratio:1 이라 칸 폭이 곧 높이가 된다. 판 자체를 좁힌다. */
+  .board { max-width: 25rem; margin-inline: auto; }
+  .glyph-han { font-size: 2rem; }
+  .glyph { border-radius: 12px; }
+}
+
+/* ══════════════════════════════════════════════════════
+   모션을 줄인 사용자
+   ══════════════════════════════════════════════════════ */
+/* 반드시 파일 끝에 둔다. 여기서 끄려는 규칙(.btn-send, .chip, .dots, .dr-*)이
+   모두 아래쪽에 있어서, 위에 두면 특이도가 같아 원본이 이겨버린다.
+   실제로 예전엔 이 블록이 위에 있어 .btn-send 와 .chip 은 꺼지지 않았다. */
+@media (prefers-reduced-motion: reduce) {
+  .reveal { opacity: 1; transform: none; transition: none; }
+  .btn-cast, .ch-item, .btn-unlock, .btn-send, .chip { transition: none; }
+
+  /* 명경 — 새기는 맛보다 읽히는 게 먼저다.
+     글자는 다 보여주되 하나씩 튀어나오지 않게 한다.
+     진행 바도 채워지긴 해야 한다(안 채우면 멈춘 걸로 보인다) — 대신 슬금슬금 가게 둔다. */
+  .carve b { opacity: 1; animation: none; transform: none; filter: none; }
+  .veil-text.is-in { animation: none; }
+
+  /* 영상은 CSS 로 멈출 수 없다. 대신 정지 그림 쪽을 계속 보여준다 —
+     도령이 사라지지 않으면서 움직임만 없앤다. */
+  .dr-still, .dr-media { transition: none; }
+  .dr-frame.playing .dr-media { opacity: 0; }
+  .dr-frame.playing .dr-still { opacity: 1; }
+
+  /* 대답을 기다리는 동안 깜빡이던 점 — 깜빡임을 빼고 자리만 지킨다 */
+  .dots span { animation: none; opacity: .75; }
+
+  .resume-bar button { transition: none; }
+  .veil { animation: none; }
+}
+
+/* 값 카드에서 상세페이지로 가는 길 */
+.tier-see {
+  display: block; text-align: center; padding-top: .1rem;
+  font-size: .8rem; color: var(--paper-dim); text-decoration: none;
+}
+.tier-see:hover { color: var(--gold-ink); }
+
+/* ── 친구 링크로 들어온 사람 ──────────────────────────────
+   보낸 사람의 생년월일은 링크에 없다. 유형 이름 하나뿐이라
+   "누가 보냈는지"가 아니라 "어떤 유형인지"만 뜬다. */
+.from-link {
+  display: grid; gap: .2rem; justify-items: center; text-align: center;
+  width: 100%; padding: .8rem 1rem; border-radius: 12px;
+  background: linear-gradient(165deg, rgba(198,161,91,.24), var(--ink-2));
+  border: 1px solid var(--line);
+}
+.fl-name { font-family: var(--serif); font-size: 1.15rem; color: var(--gold-ink); }
+.fl-note { font-size: .78rem; line-height: 1.7; color: var(--paper-dim); }
+
+/* ══════════════════════════════════════════════════════
+   장(章) — 한 편의 긴 글
+
+   칸 열 개를 없애고 이걸로 바꿨다. 여기서 중요한 건 장식이 아니라
+   '읽히는 것' 하나다. 그래서 규칙이 셋뿐이다.
+     · 한 줄이 너무 길지 않게      (~34rem, 한글 30자 언저리)
+     · 문단 사이가 문장 사이보다 넓게
+     · 굵게는 눈이 걸리는 데만
+   ══════════════════════════════════════════════════════ */
+.cp { display: grid; gap: .85rem; }
+
+.cp-t {
+  font-family: var(--serif);
+  font-size: 1.42rem; font-weight: 400; line-height: 1.4;
+  letter-spacing: -0.02em;
+  color: var(--paper);
+  text-wrap: balance;
+}
+.cp-lead {
+  font-size: .88rem; line-height: 1.75;
+  color: var(--paper-dim);
+  padding-bottom: .1rem;
+  border-bottom: 1px solid var(--line-soft);
+  text-wrap: pretty;
+}
+
+/* 본문. 줄 간격을 넉넉히 두는 대신 문단 사이는 그보다 더 벌린다 —
+   그래야 한 문단이 한 덩어리로 잡힌다. */
+.cp-body { display: grid; gap: 1.15rem; }
+.cp-body > p {
+  font-size: 1.0rem; line-height: 1.95;
+  color: var(--paper);
+  text-wrap: pretty;
+  word-break: keep-all;   /* 한글은 어절 단위로 끊어야 읽힌다 */
+}
+.cp-body b {
+  font-weight: 600;
+  color: var(--gold-ink);
+  /* 밑줄이나 배경을 깔면 굵게가 두 번 강조된다. 색만 바꾼다. */
+}
+
+/* 가린 문단. 진짜 글자는 DOM 에 없고 폭만 남는다. */
+.cp-veil { display: block; }
+.cp-veil i {
+  display: block; height: 1.05em; margin: .42em 0;
+  border-radius: 3px;
+  background: linear-gradient(90deg, rgba(154,122,56,.26), rgba(154,122,56,.11));
+  max-width: 100%;
+}
+.cp-more {
+  font-size: .82rem; color: var(--paper-far);
+  text-align: center; padding-top: .2rem;
+}
+
+/* 행동은 글이 끝난 뒤에 따로 선다.
+   해석은 읽는 영역, 행동은 하는 영역 — 눈으로 갈라 놓는다. */
+.cp-act {
+  display: grid; gap: .55rem;
+  margin-top: .35rem; padding: .9rem 1rem;
+  background: var(--ink-2);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+.cp-do { display: grid; grid-template-columns: 5.4rem 1fr; gap: .7rem; align-items: start; }
+.cp-do i {
+  font-style: normal; font-size: .7rem; letter-spacing: .04em;
+  color: var(--gold-on-tint); padding-top: .28rem; white-space: nowrap;
+}
+.cp-do.is-hold i { color: var(--paper-far); }
+.cp-do span { font-size: .93rem; line-height: 1.75; color: var(--paper); }
+.cp-do .cp-veil i { display: block; width: auto; padding: 0; }
+
+@media (max-width: 22rem) {
+  .cp-t { font-size: 1.28rem; }
+  .cp-do { grid-template-columns: 1fr; gap: .15rem; }
+  .cp-do i { padding-top: 0; }
+}
+
+/* 곡선 아래에 붙는 긴 글. 카드 안에 또 카드를 넣지 않고 종이 위에 그대로 얹는다. */
+.daeun-read { margin-top: 1.4rem; }
+.daeun-read:empty { display: none; }
+.daeun-read .cp-t { font-size: 1.32rem; }
+
+/* 오늘을 더 읽기 — 접어두는 자리.
+   오늘 화면은 짧아야 습관이 되고, 더 원하는 사람만 펴면 된다. */
+.td-read { margin-top: -.2rem; }
+.td-read summary {
+  cursor: pointer; list-style: none;
+  padding: .5rem 0; font-size: .84rem; color: var(--gold-ink);
+  border-bottom: 1px dashed var(--line);
+}
+.td-read summary::-webkit-details-marker { display: none; }
+.td-read summary::after { content: ' ⌄'; color: var(--gold-ink); }
+.td-read[open] summary::after { content: ' ⌃'; }
+.td-read-body { padding-top: .9rem; }
+
+/* ══════════════════════════════════════════════════════
+   값 — 화면 아래 한 줄
+
+   예전엔 스크롤 맨 끝의 카드였다. 거기까지 내려온 사람만 봤다.
+   탭으로 나눈 뒤엔 더 나빠질 뻔했다 — 탭 하나로 만들면 안 눌리는 방이 되고,
+   네 탭 공통 꼬리로 두면 같은 카드가 네 번 반복된다.
+   눕혀서 늘 보이게 두되 화면은 안 가린다. 결제하면 통째로 사라진다.
+   ══════════════════════════════════════════════════════ */
+.paybar {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
+  padding: .55rem 1rem calc(.55rem + env(safe-area-inset-bottom));
+  background: rgba(255, 255, 255, .94);
+  backdrop-filter: blur(12px);
+  border-top: 1px solid var(--line);
+  display: grid; gap: .25rem; justify-items: center;
+}
+.paybar-btn {
+  width: min(100%, 26rem);
+  display: flex; align-items: center; justify-content: space-between; gap: .8rem;
+  padding: .72rem 1rem;
+  border-radius: 11px;
+  background: linear-gradient(180deg, var(--gold-lit), var(--gold) 55%, var(--gold-deep));
+  color: var(--on-gold);
+  box-shadow: 0 .4rem 1rem rgba(94,74,34,.22);
+}
+.paybar-lead { font-size: .93rem; font-weight: 600; }
+.paybar-price { font-size: .84rem; white-space: nowrap; }
+.paybar-price b { font-weight: 700; }
+.paybar-note { font-size: .7rem; color: var(--paper-far); text-align: center; }
+
+/* 고정 바가 마지막 글을 덮지 않게 바닥을 그만큼 띄운다 */
+.report:has(~ .paybar:not(.hidden)) { padding-bottom: 7rem; }
+@supports not (selector(:has(*))) { .report { padding-bottom: 7rem; } }
+
+/* ══════════════════════════════════════════════════════
+   광고 자리
+
+   값을 한 번만 받기로 하면서 붙은 자리다. 결제한 사람에게도 계속 붙는다 —
+   광고 제거를 팔지 않으니 사라지는 척하면 안 된다.
+
+   생김새의 원칙 하나. **글처럼 보이지 않게 한다.**
+   본문은 흰 바탕에 세로로 흐르는데, 여기는 한 겹 내린 면에 얇은 테를 둘러
+   "여긴 다른 것" 이라고 눈에 먼저 알린다. 위에 '광고' 라고 적는 건 규칙이기도 하고
+   속았다는 기분을 안 주려는 것이기도 하다.
+   ══════════════════════════════════════════════════════ */
+.adslot {
+  margin: 2rem 0 .4rem;
+  padding: .55rem .8rem .8rem;
+  /* --ink-1 로 뒀다가 되돌렸다. 오늘 탭 카드가 크림(--ink-2)이라 광고가 카드보다 **밝았다** —
+     내려앉히려던 게 떠올라서 시선을 더 먹었다. 광고에 시선을 더 줄 이유가 없다.
+     --ink-3 은 흰 바탕에서도 크림 카드 위에서도 한 겹 아래로 앉는다. */
+  background: var(--ink-3);
+  border: 1px solid var(--line-soft);
+  border-radius: 12px;
+  display: grid; gap: .45rem;
+  /* 광고망 태그가 자기 크기를 들고 오기 전에도 자리가 안 흔들리게 바닥을 준다 */
+  min-height: 4.5rem;
+}
+/* '광고' 라벨. --paper-far 로 뒀다가 올렸다 — #EDE6D6 위에서 4.10:1 로 AA 미달이었다.
+   눈에 덜 띄게 두고 싶은 마음이 있었는데, 광고라고 알리는 글자를 안 보이게 만드는 건
+   그 표시를 다는 이유를 스스로 없애는 짓이다. 대비를 맞춘다. */
+.adslot-tag {
+  font-size: .62rem; letter-spacing: .09em; font-weight: 700;
+  color: var(--paper-dim); text-transform: none;
+}
+.adslot ins { display: block; margin: 0 auto; max-width: 100%; }
+
+/* 집 광고 — 광고망이 없을 때 이 자리에 우리 것을 안내한다 */
+.ad-house { display: grid; gap: .3rem; justify-items: start; }
+.ad-lead {
+  font-style: normal; font-weight: 700; font-size: .92rem;
+  color: var(--paper); line-height: 1.45;
+}
+.ad-body { font-size: .84rem; color: var(--paper-dim); line-height: 1.6; margin: 0; }
+.ad-cta {
+  margin-top: .25rem;
+  padding: .42rem .85rem;
+  font-size: .82rem; font-weight: 600;
+  color: var(--gold-on-tint);
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  transition: background .18s ease, color .18s ease;
+}
+.ad-cta:hover, .ad-cta:focus-visible { background: var(--gold-ink); color: #fff; border-color: var(--gold-ink); }
+
+/* 오늘 탭 바닥에서 값 있는 탭으로 건네는 한 줄.
+   바(paybar)를 안 띄우는 탭이라 여기 한 줄이 유일한 안내다. 그래서 조용해야 한다. */
+.td-toPaid {
+  margin-top: 1.6rem;
+  font-size: .86rem; line-height: 1.75;
+  color: var(--paper-dim);
+  padding-top: 1rem;
+  border-top: 1px solid var(--line-soft);
+}
+.td-toPaid .td-open {
+  display: inline; padding: 0; margin: 0;
+  background: none; border: 0;
+  font: inherit; font-weight: 700;
+  color: var(--gold-on-tint);
+  text-decoration: underline; text-underline-offset: .2em;
+  text-decoration-color: var(--line);
+}
+.td-toPaid .td-open:hover { text-decoration-color: currentColor; }
+
+/* ── 재물 · 일 ─────────────────────────────────────────
+   본문은 장(章)과 같은 꼴이라 .cp 스타일을 그대로 쓴다.
+   조건에 따라 붙는 문단과 계산 근거만 여기서 따로 잡는다. */
+.rd-add { display: grid; gap: 1.15rem; margin-top: 1.15rem; }
+.rd-add p {
+  font-size: 1rem; line-height: 1.95; color: var(--paper);
+  text-wrap: pretty; word-break: keep-all;
+}
+.rd-basis {
+  margin-top: 1rem; padding-top: .7rem;
+  border-top: 1px dashed var(--line);
+  font-size: .78rem; line-height: 1.7; color: var(--paper-far);
+}
+
+/* 로딩 문구 — 줄이 바뀔 때 살짝 올라온다.
+   같은 자리에서 글자만 갈리면 바뀐 줄 알아채기 전에 다음으로 넘어간다. */
+.veil-text.is-in { animation: veilLine .42s var(--ease) both; }
+@keyframes veilLine {
+  from { opacity: 0; transform: translateY(.5rem); }
+  to   { opacity: 1; transform: none; }
+}
+/* 여덟 글자가 뜨는 줄은 한자가 섞여 길어진다. 두 줄까지 받아준다. */
+.veil-text { min-height: 3.2em; display: flex; align-items: center; justify-content: center; text-wrap: balance; }
+
+/* ══════════════════════════════════════════════════════
+   안내 — 처음 온 사람은 한 번에 하나씩 본다
+
+   탭 넷을 한꺼번에 던지면 어디부터 볼지 모른다.
+   도령이 하나씩 넘겨주고, 다 보고 나서야 탭이 열린다.
+
+   한 걸음에 보여주는 건 제목과 첫 문단까지다. 그 이상은 한 화면을 넘고,
+   넘어가는 순간 "하나씩" 이라는 약속이 깨진다.
+   ══════════════════════════════════════════════════════ */
+.report.is-guiding .tabs,
+.report.is-guiding .pane-sub,
+.report.is-guiding #sec-locked,
+.report.is-guiding #sec-ask,
+.report.is-guiding .rp-actions,
+.report.is-guiding #btn-guide-again,
+.report.is-guiding #resume-bar { display: none; }
+
+/* 한 판에서 첫 덩이만. 사주팔자 탭은 명식표·오행·재물·일 넷이 들어 있는데
+   안내에서는 명식표 하나만 보여준다. */
+.report.is-guiding .pane > .rp-sec ~ .rp-sec { display: none; }
+
+/* 그 덩이 안에서도 제목과 첫 문단까지. 나머지는 안내가 끝나고 탭에서 본다. */
+.report.is-guiding .cp-lead,
+.report.is-guiding .cp-body > *:not(:first-child),
+.report.is-guiding .cp-more,
+.report.is-guiding .cp-act,
+.report.is-guiding .rd-add,
+.report.is-guiding .rd-basis,
+.report.is-guiding .np,
+.report.is-guiding .td-open,
+.report.is-guiding .td-read,
+.report.is-guiding .td-acts,
+.report.is-guiding .td-foot,
+.report.is-guiding .wk-wrap,
+.report.is-guiding .td-flow { display: none; }
+
+/* 안내 바가 아래를 덮으니 그만큼 띄운다 */
+.report.is-guiding { padding-bottom: 11rem; }
+
+.guide {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
+  padding: .9rem 1.1rem calc(.9rem + env(safe-area-inset-bottom));
+  background: rgba(255, 255, 255, .96);
+  backdrop-filter: blur(12px);
+  border-top: 1px solid var(--line);
+  display: grid; gap: .75rem;
+  animation: guideUp .5s var(--ease) both;
+}
+@keyframes guideUp { from { transform: translateY(100%); } to { transform: none; } }
+
+.guide-say {
+  display: flex; align-items: center; gap: .8rem;
+  max-width: var(--wrap); margin: 0 auto; width: 100%;
+}
+.dr-guide { width: 3.2rem; flex: none; }
+.dr-guide video, .dr-guide img { width: 100%; display: block; border-radius: 8px; }
+.guide-line {
+  font-family: var(--serif);
+  font-size: 1.02rem; line-height: 1.6;
+  color: var(--paper);
+  text-wrap: pretty; word-break: keep-all;
+}
+
+.guide-nav {
+  display: flex; align-items: center; gap: .7rem;
+  max-width: var(--wrap); margin: 0 auto; width: 100%;
+}
+.guide-dots {
+  flex: 1; text-align: center;
+  font-size: .78rem; color: var(--paper-far);
+  font-variant-numeric: tabular-nums;
+}
+.guide-prev, .guide-next {
+  padding: .62rem 1.1rem; border-radius: 10px; font-size: .9rem;
+}
+.guide-prev {
+  border: 1px solid var(--line-soft); color: var(--paper-dim);
+}
+.guide-prev:disabled { opacity: .35; cursor: default; }
+.guide-next {
+  background: linear-gradient(180deg, var(--gold-lit), var(--gold) 55%, var(--gold-deep));
+  color: var(--on-gold); font-weight: 600;
+  box-shadow: 0 .3rem .8rem rgba(94,74,34,.22);
+}
+
+/* 안내를 다시 보는 단추 — 다 본 사람에게만 뜬다 */
+.guide-again { display: block;
+  font-size: .8rem; color: var(--gold-ink);
+  border: 1px solid var(--line); border-radius: 999px;
+  padding: .35rem .9rem; margin: 0 auto;
+}
+
+/* 안내 중에는 머리를 접는다.
+   캐릭터 영상 + 유형 이름 + 딱지 넷이 화면의 3분의 2를 먹어서
+   정작 읽으라고 띄운 글이 잘렸다. 이름 한 줄만 남긴다.
+   전체 머리는 안내가 끝나고 탭 화면에서 제대로 본다. */
+.report.is-guiding .dr-reveal,
+.report.is-guiding .rp-eyebrow,
+.report.is-guiding .rp-headline,
+.report.is-guiding .rp-stats { display: none; }
+.report.is-guiding .rp-brand { gap: 0; padding-bottom: .2rem; }
+.report.is-guiding .rp-name { font-size: 1.5rem; }
+.report.is-guiding { padding-top: 1.5rem; }
+
+/* 안내 중에는 꼬리말과 값 막대도 접는다.
+   판이 짧아지니 페이지 맨 아래 면책 문구가 화면 안으로 올라와서
+   "먼저 성격부터 보겠네" 다음 줄이 자살예방 상담전화가 됐다.
+   면책은 지워선 안 되는 글이라 안내가 끝나면 그대로 돌아온다.
+
+   footer 는 main 밖에 있어서 .report 의 형제가 아니다. body 에 표시를 달아 잡는다. */
+body.is-guiding .site-footer,
+body.is-guiding .paybar { display: none; }
+
+/* ══════════════════════════════════════════════════════
+   글의 층위 — 다섯
+
+   사용자가 말했다. "셋 다 뭘 말하는 건지 모르겠어. 그냥 줄글로 주르륵 있으니까."
+   재보니 탭 설명(.pane-sub)과 장 요약(.cp-lead)이 **픽셀 단위로 같았다** —
+   14px, 같은 회색, 같은 서체. 역할이 둘인데 모양이 하나였다.
+   오늘 탭은 층위가 스물다섯이었다. 스물다섯 가지면 어느 것도 뜻하는 게 없다.
+
+   다섯으로 묶는다. 그리고 **크기로만 가르지 않는다** — 크기가 서로 가까우면 안 읽힌다.
+   여백·구획·왼쪽 선으로 묶어야 "이건 저것과 다른 종류" 라는 게 보인다.
+
+     ① 어디에 있나   탭을 열자마자 뜨는 한 줄
+     ② 무엇인가     장의 제목. 이것만 명조체를 쓴다
+     ③ 한 줄로      제목 바로 아래의 요약. 왼쪽 선을 그어 제목에 묶는다
+     ④ 본문         읽는 글
+     ⑤ 곁말         근거·행동·메타. 본문에서 한 칸 물러난다
+   ══════════════════════════════════════════════════════ */
+
+/* ① 어디에 있나 */
+.pane-sub {
+  font-size: .84rem; line-height: 1.7;
+  color: var(--paper-far);
+  letter-spacing: .01em;
+}
+
+/* ③ 한 줄로 — 왼쪽 선 하나면 "위 제목에 딸린 말" 이 한눈에 잡힌다.
+   ① 과 크기가 비슷해도 선이 있으니 헷갈리지 않는다. */
+.cp-lead {
+  border-bottom: 0;
+  border-left: 2px solid var(--gold);
+  padding: .1rem 0 .1rem .7rem;
+  margin-bottom: .35rem;
+  font-size: .92rem; line-height: 1.7;
+  color: var(--paper-dim);
+}
+
+/* ⑤ 곁말 */
+.rd-basis, .np-note, .sec-note, .cp-more {
+  font-size: .78rem; line-height: 1.7; color: var(--paper-far);
+}
+
+/* 한 탭 안에 덩이가 둘 이상일 때(사주팔자 = 명식표·오행·재물·일)
+   덩이 사이를 선으로 끊는다. 여백만으로는 어디서 화제가 바뀌는지 안 보인다. */
+.pane > .rp-sec ~ .rp-sec {
+  border-top: 1px solid var(--line-soft);
+  padding-top: 2.2rem;
+}
+
+/* 이름만 다르고 역할이 같은 것들을 위 다섯 층위에 붙인다.
+   재보니 사주팔자 탭이 7가지, 오늘·인생 흐름이 6가지였는데
+   늘어난 몫이 전부 "같은 역할, 다른 클래스" 였다.
+   같은 것을 다르게 그리면 읽는 사람은 다른 뜻이 있는 줄 안다. */
+
+/* ③ 한 줄로 — 덩이의 요약은 전부 같은 모양이다 */
+.sec-lead {
+  border-left: 2px solid var(--gold);
+  padding: .1rem 0 .1rem .7rem;
+  margin-top: -.5rem;
+  font-size: .92rem; line-height: 1.7; color: var(--paper-dim);
+}
+
+/* ④ 본문 — 읽는 글은 크기와 줄간격이 하나여야 눈이 안 튄다 */
+.cn-line, .td-why, .np-text {
+  font-size: 1rem; line-height: 1.95; color: var(--paper);
+  text-wrap: pretty; word-break: keep-all;
+}
+.cn-line { font-family: var(--sans); }   /* 여기만 명조였다. 제목이 아닌데 */
+
+/* ⑤ 곁말 — 근거·보탬말은 본문에서 한 칸 물러난다 */
+.board-foot, .oheng-foot, .cn-advice, .td-air, .sc-note {
+  font-size: .82rem; line-height: 1.75; color: var(--paper-far);
+  text-wrap: pretty;
+}
+.cn-advice { padding-top: .4rem; border-top: 1px dashed var(--line); }
+
+/* 이름 칸 — 숫자 칸과 달리 왼쪽 정렬이다. 이름은 가운데 두면 어색하다.
+   폼에서 유일하게 안 적어도 되는 칸이라 라벨에 그렇게 적어뒀다. */
+.fld-name input {
+  text-align: left;
+  padding-left: .9rem;
+  font-size: 1rem;
+  font-variant-numeric: normal;
+}
+.fld-name label {
+  text-align: left;
+  left: .9rem; right: auto;
+  letter-spacing: .08em;
+}
+
+/* ══════════════════════════════════════════════════════
+   색 위계를 다시 잡는다
+
+   카드·입력칸·탭·결제바가 전부 크림색이라 **위계가 색으로 안 잡혔다.**
+   어디가 중요한지 눈이 못 골랐다.
+
+   코덱스와 이렇게 합의했다 —
+     바탕·입력칸·탭    흰색      화면의 바닥
+     읽는 글 카드       크림      여기만 종이다. 그림자로 띄운다
+     카드 안의 칸       한 겹 아래
+   금색은 한 화면에 **같은 역할로 두 번 나오지 않게** 한다.
+   변수 다섯을 당장 합치는 것보다 이게 먼저다.
+   ══════════════════════════════════════════════════════ */
+
+/* 입력 카드는 종이가 아니라 도구다. 흰색으로 올린다. */
+.gate-form {
+  background: #FFFFFF;
+  border-color: var(--line-soft);
+  box-shadow: 0 .6rem 1.6rem rgba(94,74,34,.07), 0 1px 2px rgba(26,29,38,.04);
+}
+.fld input, .cal-seg, .sex-seg {
+  background: #FDFCFA;
+  border-color: rgba(26,29,38,.10);
+}
+
+/* 탭 막대도 흰색. 여기가 크림이면 아래 카드와 붙어 보인다. */
+.tabs { background: rgba(255,255,255,.94); }
+
+/* 읽는 글만 종이다. 한 화면에서 크림은 여기뿐이라 눈이 바로 여기로 온다. */
+.cp, .wealth .cp, .work .cp,
+#hiddenFace .cp, #firstLook .cp, #beside .cp,
+#friction .cp, #turning .cp, #yearWork .cp {
+  background: var(--ink-2);
+  border: 1px solid var(--line-soft);
+  border-radius: 14px;
+  padding: 1.5rem 1.25rem;
+  box-shadow: 0 .5rem 1.4rem rgba(94,74,34,.06);
+}
+/* 카드가 됐으니 덩이 사이 선은 필요 없다. 오히려 겹쳐 보인다. */
+.pane > .rp-sec ~ .rp-sec { border-top: 0; padding-top: 0; }
+.pane { gap: 1.6rem; }
+
+/* 결제 바 — 금색은 단추 하나에만. 바탕까지 금빛이면 화면이 팔려고만 든다. */
+.paybar { background: rgba(255,255,255,.96); }
+
+/* 오늘 카드도 같은 종이 위에 */
+.today { background: var(--ink-2); border: 1px solid var(--line-soft);
+         border-radius: 14px; padding: 1.4rem 1.15rem;
+         box-shadow: 0 .5rem 1.4rem rgba(94,74,34,.06); }
+
+/* 오늘의 흐름 — 숫자 대신 구간 이름을 앞세운다.
+   우리 눈금에서 50은 한가운데인데 100점 만점에 50점은 낙제로 읽힌다.
+   실측 구간(1,825일, 10/18/47/15/9%)은 그대로 쓰고 표시만 바꿨다. */
+.sc-head { display: grid; gap: .1rem; }
+.sc-band-big {
+  font-family: var(--serif);
+  font-size: 1.9rem; line-height: 1.25;
+  color: var(--paper);
+  letter-spacing: -0.02em;
+}
+.sc-sub { font-size: .76rem; letter-spacing: .14em; color: var(--paper-far); }
+/* 원점수는 근거를 펼쳤을 때만 나온다 */
+.sc-total { border-top: 1px solid var(--line); padding-top: .5rem; margin-top: .2rem; }
+.sc-total .sc-d { color: var(--paper); font-weight: 600; }
