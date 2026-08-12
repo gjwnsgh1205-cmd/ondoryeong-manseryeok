@@ -16,10 +16,33 @@ const Story = (() => {
   const C = () => (typeof Content !== 'undefined' ? Content
     : (typeof window !== 'undefined' ? window.Content : null));
 
+  /* 깊은 글. 있으면 이걸 먼저 쓴다.
+     129편은 한 사람이 8천 자를 보는 분량이고, 이 팩은 같은 자리를 훨씬 길게 덮는다.
+     축(일간·계절, 십성 열쇠)에 걸리는 것이라 같은 열쇠를 가진 사람이면 누구나 본다.
+     안 걸리면 조용히 129편으로 돌아간다 — 화면이 비지 않는다. */
+  const D = () => (typeof ContentDeep !== 'undefined' ? ContentDeep
+    : (typeof window !== 'undefined' ? window.ContentDeep : null));
+
   const lf = (box, key) => {
+    if (!key) return null;
+    const deep = D();
+    if (deep && deep[box] && deep[box][key]) return deep[box][key];
     const db = C();
-    return (db && db.longform && db.longform[box] && key) ? db.longform[box][key] : null;
+    return (db && db.longform && db.longform[box]) ? db.longform[box][key] : null;
   };
+
+  /* 이 명식에만 걸리는 글(권두·대운 열 줄·발문).
+     대운은 태어난 때마다 달라서 축으로 묶을 수가 없다. 여덟 글자를 이어 열쇠로 쓴다. */
+  function chartOnly(chart, key) {
+    const deep = D();
+    if (!deep || !deep.charts) return null;
+    const P = chart.pillars;
+    const sig = ['year', 'month', 'day', 'hour']
+      .filter((k) => P[k])
+      .map((k) => P[k].stemInfo.kor + P[k].branchInfo.kor).join('');
+    const box = deep.charts[sig];
+    return (box && box[key]) || null;
+  }
 
   /* 잠긴 문단까지 합쳐 한 장을 통째로 돌려준다.
      웹툰에서는 중간에 막대를 세우지 않는다 — 읽는 흐름이 끊기면 웹툰이 아니다.
@@ -38,16 +61,20 @@ const Story = (() => {
     }));
   };
 
-  /* 여덟 장. 순서와 앵커와 여는 대사가 여기 한 곳에 모여 있다. */
+  /* 여덟 장. 순서와 앵커와 여는 대사, 그리고 **바탕색**이 여기 한 곳에 모여 있다.
+     mood 는 장마다 배경이 띠는 색이다. 장이 바뀌면 뒤에 흐르는 부적의 색이 서서히 갈린다.
+     같은 화면을 여덟 번 보는 게 아니라 여덟 방을 지나가는 느낌을 만드는 장치다.
+
+     마지막 장만 light:1 이다. 어두운 데서 시작해 **흰 데로 걸어 나오며 끝난다.** */
   const PLAN = [
-    { key: 'chart',  anchor: 'unfold', say: ['여덟 글자다.', '이게 {이름}의 전부는 아니지만, 시작은 여기야.'] },
-    { key: 'nature', anchor: 'point',  say: ['{이름}. 너는 이런 사람이야.'] },
-    { key: 'inout',  anchor: 'greet',  say: ['밖에서 보는 너랑 안에 있는 너가 달라.', '둘 다 너지만.'] },
-    { key: 'people', anchor: 'laugh',  say: ['누구 옆에서 편한지 알아?'] },
-    { key: 'money',  anchor: 'grave',  say: ['돈 얘기는 좀 냉정하게 하자.'] },
-    { key: 'flow',   anchor: 'far',    say: ['십 년마다 바람이 갈려.', '{이름}은 지금 그 한가운데 서 있고.'] },
-    { key: 'year',   anchor: 'amused', say: ['올해는 어떤가 보자.'] },
-    { key: 'end',    anchor: 'close',  say: ['여기까지야.', '나머지는 {이름}이 살아.'] },
+    { key: 'chart',  anchor: 'unfold', mood: [120, 130, 210], say: ['여덟 글자다.', '이게 {이름}의 전부는 아니지만, 시작은 여기야.'] },
+    { key: 'nature', anchor: 'point',  mood: [ 90, 190, 170], say: ['{이름}. 너는 이런 사람이야.'] },
+    { key: 'inout',  anchor: 'greet',  mood: [160, 120, 220], say: ['밖에서 보는 너랑 안에 있는 너가 달라.', '둘 다 너지만.'] },
+    { key: 'people', anchor: 'laugh',  mood: [240, 150,  90], say: ['누구 옆에서 편한지 알아?'] },
+    { key: 'money',  anchor: 'grave',  mood: [220, 180,  90], say: ['돈 얘기는 좀 냉정하게 하자.'] },
+    { key: 'flow',   anchor: 'far',    mood: [220,  80,  70], say: ['십 년마다 바람이 갈려.', '{이름}은 지금 그 한가운데 서 있고.'] },
+    { key: 'year',   anchor: 'amused', mood: [255, 190, 110], say: ['올해는 어떤가 보자.'] },
+    { key: 'end',    anchor: 'close',  mood: [200, 195, 185], light: 1, say: ['여기까지야.', '나머지는 {이름}이 살아.'] },
   ];
 
   /* 장 사이에 끼는 한 줄. 검은 화면에 이것만 뜬다. */
@@ -100,13 +127,17 @@ const Story = (() => {
 
     let bi = 0;
     for (const step of PLAN) {
-      cuts.push({ kind: 'scene', anchor: step.anchor, say: step.say });
+      // mood 를 scene 컷에 실어 보낸다. 화면이 이 컷에 닿으면 배경색이 그쪽으로 끌려간다.
+      cuts.push({ kind: 'scene', anchor: step.anchor, say: step.say,
+        mood: step.mood, light: step.light || 0, chapter: step.key });
 
       if (step.key === 'chart') {
         cuts.push({ kind: 'chart', pillars: cols,
           foot: `${rp.glyphCount === 6 ? '여섯' : '여덟'} 글자예요. 위가 하늘의 기운, 아래가 땅의 기운이에요.` });
         cuts.push(...proseCuts([{ title: rp.type.name, lead: rp.type.headline,
           paras: [rp.type.nounGloss, rp.type.modGloss].filter(Boolean) }]));
+        // 표 읽는 법. 이 명식용 깊은 글이 있으면 얹는다.
+        cuts.push(...proseCuts([chartOnly(rp.chart, 'intro')]));
       } else if (step.key === 'nature') {
         cuts.push(...proseCuts([whole(lf('natures', rp.type.stem + rp.type.season), pf('natures', rp.type.stem + rp.type.season))]));
       } else if (step.key === 'inout') {
@@ -133,6 +164,8 @@ const Story = (() => {
             pillars: [{ top: cur.han[0], bot: cur.han[1], tag: cur.ganji }], foot: cur.line });
           cuts.push(...proseCuts([whole(cur.chapter, pf('daeun', cur.chapter && cur.chapter.key))]));
         }
+        // 대운 열 줄을 통째로 짚는 글. 태어난 때마다 달라서 이 명식에만 걸린다.
+        cuts.push(...proseCuts([chartOnly(rp.chart, 'daeun')]));
         cuts.push(...proseCuts([whole(lf('turning', rp.turning && rp.turning.key), pf('turning', rp.turning && rp.turning.key))]));
       } else if (step.key === 'year') {
         cuts.push(...proseCuts([whole(lf('yearWork', rp.yearWork && rp.yearWork.key), pf('yearWork', rp.yearWork && rp.yearWork.key))]));
@@ -140,6 +173,7 @@ const Story = (() => {
           cuts.push({ kind: 'prose', paras: [rp.flow.year.line] });
         }
       } else if (step.key === 'end') {
+        cuts.push(...proseCuts([chartOnly(rp.chart, 'outro')]));
         cuts.push({ kind: 'card', birth, sub, pillars: cols,
           term: meta.monthTerm ? `${meta.monthTerm}을 지나 태어남` : '',
           tail: `{이름}. **${rp.type.name}**.`, saveable: true });

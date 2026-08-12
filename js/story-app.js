@@ -287,6 +287,9 @@
     location.reload();
   };
 
+  // 뒤에서 흐르는 배경. 도입부부터 켜둔다 — 영상이 끝나고 웹툰으로 넘어갈 때
+  // 배경이 끊기지 않아야 한 장면 안에 있다는 감각이 유지된다.
+  if (typeof Ambient !== 'undefined') Ambient.start();
   watchScroll();
   Intro.start(cast);
 })();

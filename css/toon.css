@@ -28,15 +28,68 @@
   color-scheme: dark;
 }
 
+/* 장마다 바뀌는 바탕색. js/toon.js 의 watchMood 가 갈아 끼운다.
+   기본값은 첫 장(권두)의 남색이다. */
+:root { --mood: 120 130 210; }
+
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; }
 body {
-  background: var(--dark);
+  /* 바탕에 그 장의 색이 아주 옅게 배어든다. 색을 알아채라고 넣은 게 아니라,
+     장이 바뀌었다는 걸 몸이 먼저 느끼게 하려고 넣은 것이다. */
+  background:
+    radial-gradient(120% 60% at 50% 0%, rgb(var(--mood) / .13), transparent 62%),
+    var(--dark);
   color: #E8E2D6;
   font: 16px/1.75 'Pretendard Variable', Pretendard, -apple-system, 'Malgun Gothic', sans-serif;
   -webkit-text-size-adjust: 100%;
   overflow-x: hidden;
+  transition: background-color 1.6s var(--ease);
 }
+
+/* 뒤에서 흐르는 부적. 화면에 고정이고 아무것도 안 막는다. */
+.ambient {
+  position: fixed; inset: 0; z-index: 0;
+  pointer-events: none;
+  opacity: .9;
+}
+.toon, .intro, .foot, .bar { position: relative; z-index: 1; }
+
+/* ── 마지막 장 — 흰 데로 걸어 나온다 ────────────────
+   여덟 장을 어둠 속에서 지나오다가, 발문에서 바탕이 통째로 밝아진다.
+   이 한 번의 전환이 "다 읽었다" 를 몸으로 알려준다. 그래서 딱 한 번만 쓴다. */
+html.is-lit body {
+  background:
+    radial-gradient(120% 60% at 50% 0%, rgb(var(--mood) / .18), transparent 62%),
+    #F3EFE6;
+  color: var(--ink);
+}
+/* 이 한 줄을 빠뜨려서 마지막 카드 칸만 시커멓게 남았다.
+   body 를 밝게 해도 그 위에 얹힌 .toon 이 var(--dark) 를 깔고 있으면 아무 소용이 없다. */
+html.is-lit .toon { background: transparent; }
+html.is-lit .cut-beat { background: transparent; }
+html.is-lit .beat-line { color: var(--gold-ink); }
+html.is-lit .cut-card {
+  background: radial-gradient(120% 70% at 50% 30%, rgba(198,161,91,.14), transparent 70%);
+}
+html.is-lit .card {
+  border-color: rgba(154,122,56,.4);
+  background: rgba(255,255,255,.6);
+  box-shadow: 0 .6rem 2rem rgba(94,74,34,.10), inset 0 0 3rem rgba(198,161,91,.06);
+}
+html.is-lit .cd-name { color: #2A2620; }
+html.is-lit .cd-birth, html.is-lit .cd-col b { color: var(--gold-ink); }
+html.is-lit .cd-col b { background: rgba(198,161,91,.14); border-color: rgba(154,122,56,.28); }
+html.is-lit .cd-sub, html.is-lit .cd-term { color: #6E6961; }
+html.is-lit .cd-tail { color: #3A3630; }
+html.is-lit .cd-save { color: var(--gold-ink); border-color: rgba(154,122,56,.42); }
+html.is-lit .cd-save:hover { background: var(--gold-ink); color: #fff; }
+html.is-lit .toon { box-shadow: 0 0 0 1px rgba(26,29,38,.06); }
+html.is-lit .foot { background: #EAE4D8; }
+html.is-lit .foot-fine { color: #6E6961; }
+html.is-lit .foot-fine b { color: #3A3630; }
+html.is-lit .foot-acts button { color: #3A3630; border-color: rgba(26,29,38,.16); }
+html.is-lit .ambient { opacity: .5; }
 button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
 img, video { max-width: 100%; display: block; }
 
@@ -162,10 +215,20 @@ img, video { max-width: 100%; display: block; }
 
 /* ══ 빛 — prose ════════════════════════════════════
    읽는 자리다. 흰 종이에 검은 글. 여기만 밝다. */
+/* 읽는 칸에도 그 장의 색이 위쪽에만 아주 옅게 배어든다.
+   흰 종이가 어두운 배경 위에 뚝 떨어져 있으면 두 세계가 되는데,
+   위 가장자리에 색이 한 겹 물려 있으면 같은 장면 안에 있는 종이가 된다. */
 .cut-prose {
-  background: var(--paper); color: var(--ink);
+  background:
+    linear-gradient(180deg, rgb(var(--mood) / .09), transparent 22%),
+    var(--paper);
+  color: var(--ink);
   padding: 2.4rem 1.35rem 2.6rem;
+  /* 종이의 위아래 경계에 그 장의 색으로 실선 하나. 장이 바뀌면 이 선 색도 바뀐다. */
+  border-top: 1px solid rgb(var(--mood) / .28);
+  border-bottom: 1px solid rgb(var(--mood) / .18);
 }
+.cut-chart { border-top: 1px solid rgb(var(--mood) / .28); }
 .pr-t {
   margin: 0 0 .7rem;
   font-family: var(--serif); font-size: 1.5rem; line-height: 1.45;
