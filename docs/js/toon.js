@@ -29,7 +29,21 @@ const Toon = (() => {
 
   /* 값을 끼우고 조사를 고른다.
      {이름}이 를 그냥 이으면 "허준호이" 가 된다. 받침을 봐야 한다. */
-  const fill = (t, v) => (J ? J.fill(String(t || ''), v) : String(t || ''));
+  const fill = (t, v) => (J ? J.fill(String(t || ''), v || {}) : String(t || ''));
+  const said = (t, v) => {
+    const s = fill(t, v).trim();
+    return s && s !== '!' && s !== '.' ? s : '';
+  };
+
+  function veilPara(n) {
+    const len = Math.max(12, Math.min(240, n));
+    const rows = [];
+    let left = len;
+    while (left > 0) { rows.push(Math.min(left, 26)); left -= 26; }
+    if (rows.length > 1) rows[rows.length - 1] = Math.max(8, Math.round(rows[rows.length - 1] * 0.6));
+    return '<p class="pr-veil" role="img" aria-label="열면 보이는 자리">'
+      + rows.map((w) => `<i style="width:${w}ch"></i>`).join('') + '</p>';
+  }
 
   /* **굵게** 를 <b> 로. 본문에서 명리 용어를 짚을 때 쓴다. */
   const bold = (t) => esc(t).replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>');
@@ -39,30 +53,43 @@ const Toon = (() => {
   /* ── 컷 ─────────────────────────────────────────────── */
 
   function scene(c, v) {
-    const says = (Array.isArray(c.say) ? c.say : [c.say]).filter(Boolean);
+    const says = (Array.isArray(c.say) ? c.say : [c.say]).map((s) => said(s, v)).filter(Boolean);
     // mood 를 태그에 실어둔다. 화면이 이 컷에 닿으면 watch() 가 읽어 배경을 갈아준다.
     const mood = Array.isArray(c.mood) ? ` data-mood="${c.mood.join(',')}" data-light="${c.light || 0}"` : '';
     return `<section class="cut cut-scene reveal"${mood} data-anchor="${esc(c.anchor)}">
       <img class="cut-bg" src="${anchorSrc(c.anchor)}" alt="" loading="lazy" decoding="async">
       <div class="cut-shade"></div>
       <div class="bubbles">${says.map((s, i) => `
-        <p class="bub" style="--d:${i * 520}ms">${bold(fill(s, v))}</p>`).join('')}
+        <p class="bub" style="--d:${i * 520}ms">${bold(s)}</p>`).join('')}
       </div>
     </section>`;
   }
 
   function beat(c, v) {
+    const line = said(c.say, v);
+    if (!line) return '';
     return `<section class="cut cut-beat reveal">
-      <p class="beat-line">${bold(fill(c.say, v))}</p>
+      <p class="beat-line">${bold(line)}</p>
     </section>`;
   }
 
   function prose(c, v) {
-    const paras = (c.paras || []).filter(Boolean);
-    return `<section class="cut cut-prose reveal">
+    const paras = c.paras || [];
+    const hidden = Array.isArray(c.hidden) ? c.hidden : [];
+    const body = paras.map((p) => {
+      if (p && typeof p === 'object' && typeof p.len === 'number') return veilPara(p.len);
+      if (!p) return '';
+      return `<p class="pr-p">${bold(fill(p, v))}</p>`;
+    }).join('')
+      + hidden.map((n) => veilPara(n)).join('');
+    const cta = c.locked
+      ? `<button type="button" class="toon-unlock" data-unlock>한 편 30,000원으로 마저 읽기</button>`
+      : '';
+    return `<section class="cut cut-prose reveal${c.locked ? ' is-locked' : ''}">
       ${c.title ? `<h3 class="pr-t">${bold(fill(c.title, v))}</h3>` : ''}
-      ${c.lead ? `<p class="pr-lead">${bold(fill(c.lead, v))}</p>` : ''}
-      ${paras.map((p) => `<p class="pr-p">${bold(fill(p, v))}</p>`).join('')}
+      ${c.lead && !c.locked ? `<p class="pr-lead">${bold(fill(c.lead, v))}</p>` : ''}
+      ${body}
+      ${cta}
     </section>`;
   }
 
@@ -104,7 +131,7 @@ const Toon = (() => {
   /** 컷 배열을 통째로 그린다. */
   function render(box, cuts, values) {
     const v = values || {};
-    box.innerHTML = cuts.map((c) => (DRAW[c.kind] ? DRAW[c.kind](c, v) : '')).join('');
+    box.innerHTML = cuts.map((c) => (DRAW[c.kind] ? DRAW[c.kind](c, v) : '')).filter(Boolean).join('');
     watch(box);
     return box;
   }
@@ -179,7 +206,7 @@ const Toon = (() => {
     pick();
   }
 
-  return { render, fill, bold, anchorSrc };
+  return { render, fill, bold, said, veilPara, anchorSrc };
 })();
 
 if (typeof module !== 'undefined') module.exports = Toon;

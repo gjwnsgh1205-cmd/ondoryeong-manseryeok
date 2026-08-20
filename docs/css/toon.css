@@ -249,6 +249,32 @@ img, video { max-width: 100%; display: block; }
 }
 .pr-p:last-child { margin-bottom: 0; }
 .pr-p b { color: var(--gold-ink); font-weight: 700; }
+.pr-veil { display: grid; gap: .45rem; margin: 0 0 1.15rem; }
+.pr-veil i {
+  display: block; height: .7em;
+  background: rgba(26,29,38,.12); border-radius: 4px;
+}
+.toon-unlock {
+  display: block; width: 100%; margin-top: 1.2rem; padding: .9rem 1rem;
+  font-size: .95rem; font-weight: 600; color: #16130A;
+  background: linear-gradient(180deg, #E9C87A, #C6A15B);
+  border-radius: 12px;
+}
+.paybar {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 35;
+  max-width: var(--wrap); margin: 0 auto;
+  padding: .65rem .9rem calc(.75rem + env(safe-area-inset-bottom));
+  background: rgba(11,11,15,.92); backdrop-filter: blur(10px);
+  border-top: 1px solid rgba(233,200,122,.28);
+}
+.paybar.hidden { display: none; }
+.paybar-btn {
+  width: 100%; display: flex; justify-content: space-between; align-items: center;
+  gap: .6rem; padding: .75rem 1rem;
+  color: #16130A; background: linear-gradient(180deg, #E9C87A, #C6A15B);
+  border-radius: 12px; font-weight: 600;
+}
+.paybar-price b { font-family: var(--serif); }
 
 /* ══ 빛 — chart ════════════════════════════════════ */
 .cut-chart {

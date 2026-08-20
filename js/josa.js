@@ -86,12 +86,17 @@ const Josa = (() => {
   const JOSA_RE = new RegExp('^(' + Object.keys(PAIR).sort((a, b) => b.length - a.length).join('|') + ')');
 
   function fill(text, values) {
+    let s = String(text);
+    const name = values && values.이름;
+    // 이름이 비면 호칭을 통째로 지운다. 슬롯만 지우면 "님은 지금" / "!" 가 남는다.
+    if (!name) {
+      s = s.replace(/\{이름\}님(은|이|가|는|께서)?\s*/g, '');
+      s = s.replace(/\{이름\}([가-힣]{0,3})?\s*[,.!?…·]*\s*/g, '');
+    }
     // 슬롯 이름이 한글이다. \w 는 한글을 안 잡아서 아무것도 안 바뀐다.
-    return String(text).replace(/\{([^{}\s]+)\}([가-힣]*)/g, (whole, key, after) => {
-      if (!(key in values)) return whole;
+    return s.replace(/\{([^{}\s]+)\}([가-힣]*)/g, (whole, key, after) => {
+      if (!values || !(key in values)) return whole;
       const v = values[key];
-      // 값이 비면 슬롯을 통째로 지운다. "{이름}님은" → "" 이 아니라 뒤를 살려야 하므로
-      // 값이 빈 경우는 부르는 쪽에서 문장째 갈아 끼우게 두고, 여기서는 슬롯만 지운다.
       if (v == null || v === '') return after;
       const m = after.match(JOSA_RE);
       if (!m) return v + after;

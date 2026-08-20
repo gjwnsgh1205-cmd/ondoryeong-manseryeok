@@ -17,7 +17,14 @@
     && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   const STORE = 'saju.story.v1';
+  const PASS = 'saju.story.pass.v1';
+  const PRICE = (typeof Story !== 'undefined' && Story.PRICE) ? Story.PRICE : 30000;
   let chart = null, rp = null, reader = '';
+  let lastGot = null;
+  let ent = { paid: false };
+  try { ent = { ...ent, ...(JSON.parse(localStorage.getItem(PASS) || '{}')) }; } catch (e) {}
+  const opened = () => !!ent.paid;
+  const saveEnt = () => { try { localStorage.setItem(PASS, JSON.stringify(ent)); } catch (e) {} };
 
   /* ── 명경 로딩 ────────────────────────────────────
      index.html 쪽에서 검증한 연출을 그대로 옮겼다.
@@ -49,18 +56,18 @@
   function veilRows(c) {
     const P = c.pillars, m = c.meta || {};
     const rows = [];
-    if (reader) rows.push({ kind: 'type', t: reader, ms: 1500 });
-    else rows.push({ t: '어디 보자…', ms: 1000 });
-    rows.push({ t: `${c.input.year}년 ${c.input.month}월 ${c.input.day}일이라…`, ms: 1000 });
+    if (reader) rows.push({ kind: 'type', t: reader + '!', ms: 1600 });
+    else rows.push({ t: '어디 보자.', ms: 1000 });
+    rows.push({ t: `${c.input.year}년 ${c.input.month}월 ${c.input.day}일.`, ms: 1000 });
     if (m.monthTerm) {
-      rows.push({ t: J ? J.fill('{절기}를 지났군', { 절기: m.monthTerm }) : m.monthTerm, ms: 1300 });
+      rows.push({ t: J ? J.fill('{절기}를 지났다. 월주가 여기서 갈린다.', { 절기: m.monthTerm }) : m.monthTerm, ms: 1500 });
     }
     const cols = ['year', 'month', 'day', 'hour'].filter((k) => P[k])
       .map((k) => ({ top: P[k].stemInfo.han, bot: P[k].branchInfo.han }));
     rows.push({ kind: 'carve', glyphs: cols,
-      t: `${cols.length === 4 ? '여덟' : '여섯'} 글자가 잡혔네`,
+      t: cols.length === 4 ? '연·월·일·시. 네 기둥이다.' : '시각이 없어 여섯 글자다. 시주는 비운다.',
       ms: 900 + cols.length * 2 * 180 + 700 });
-    rows.push({ t: '이제 하나씩 보자', ms: 1200 });
+    rows.push({ t: reader ? reader + '. 네 회차다.' : '이제 하나씩 보자.', ms: 1300 });
     return rows;
   }
 
@@ -105,16 +112,11 @@
 
   /* ── 그리기 ─────────────────────────────────────── */
   async function cast(got) {
+    lastGot = got;
     reader = got.name || '';
     const b = got.birth;
 
-    let input = {
-      year: b.year, month: b.month, day: b.day,
-      hour: b.unknownTime ? 12 : (b.hour == null ? 12 : b.hour),
-      minute: b.unknownTime ? 0 : (b.minute == null ? 0 : b.minute),
-      gender: b.gender, useTrueSolar: false,
-      unknownTime: !!b.unknownTime,
-    };
+    let input = Story.toManseInput(b);
 
     // 음력이면 양력으로 옮긴다. 못 옮기면 그대로 간다.
     if (b.calendar === 'lunar' && window.KoreanLunarCalendar) {
@@ -132,14 +134,14 @@
     chart.input.calendar = b.calendar;
 
     const wait = showVeil(chart);
-    rp = Report.build(chart, { unlocked: true });
+    rp = Report.build(chart, { unlocked: opened() });
 
-    // 유료분이 있으면 받아 온다. 없어도 화면은 성립한다.
     let paid = {};
-    try { paid = await loadPaid(); } catch (e) {}
+    if (opened()) { try { paid = await loadPaid(); } catch (e) {} }
 
-    const cuts = Story.build(rp, { paid });
+    const cuts = Story.build(rp, { paid, unlocked: opened() });
     Toon.render($('toon'), cuts, slots());
+    renderPay();
 
     try { localStorage.setItem(STORE, JSON.stringify({ name: reader, birth: b })); } catch (e) {}
 
@@ -281,11 +283,37 @@
     if (line) x.fillText(line, cx, y + n * lh);
   }
 
+  function renderPay() {
+    const bar = $('paybar');
+    if (!bar) return;
+    bar.classList.toggle('hidden', opened());
+    const p = $('unlock-price');
+    if (p) p.textContent = PRICE.toLocaleString('ko-KR') + '원';
+  }
+
+  async function unlock() {
+    ent.paid = true;
+    saveEnt();
+    if (!lastGot || !chart) { renderPay(); return; }
+    rp = Report.build(chart, { unlocked: true });
+    let paid = {};
+    try { paid = await loadPaid(); } catch (e) {}
+    const cuts = Story.build(rp, { paid, unlocked: true });
+    Toon.render($('toon'), cuts, slots());
+    renderPay();
+    wireCard();
+  }
+
   /* ── 시작 ───────────────────────────────────────── */
   $('btn-again').onclick = () => {
     try { localStorage.removeItem(STORE); } catch (e) {}
     location.reload();
   };
+  const unlockBtn = $('btn-unlock');
+  if (unlockBtn) unlockBtn.onclick = () => unlock();
+  $('toon').addEventListener('click', (e) => {
+    if (e.target.closest('[data-unlock]')) unlock();
+  });
 
   // 뒤에서 흐르는 배경. 도입부부터 켜둔다 — 영상이 끝나고 웹툰으로 넘어갈 때
   // 배경이 끊기지 않아야 한 장면 안에 있다는 감각이 유지된다.

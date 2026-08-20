@@ -142,17 +142,21 @@ const Intro = (() => {
     const lines = asked ? ['곧 알게 돼.', '너, 이름이 뭐냐.'] : ['너, 이름이 뭐냐.'];
     step(bubbles(lines, {}) + `
       <form class="iv-form iv-form-name" id="f-name-form" autocomplete="off">
-        <input type="text" id="iv-name" maxlength="12" placeholder="두 글자면 된다" spellcheck="false" required>
+        <input type="text" id="iv-name" maxlength="12" placeholder="두 글자면 된다" spellcheck="false">
         <button type="submit" class="iv-go">부른다</button>
-      </form>`, 'askname');
+      </form>
+      <button type="button" class="iv-skip-name" id="iv-skip-name">이름 없이 본다</button>`, 'askname');
     setTimeout(() => { const n = $('iv-name'); if (n) n.focus(); }, 400);
+    const takeName = (raw) => {
+      const name = String(raw || '').replace(/[<>"'*{}]/g, '').trim().replace(/(님|씨)$/, '').slice(0, 12);
+      state.name = name;
+      if (name) cut4(); else cut5();
+    };
     $('f-name-form').onsubmit = (e) => {
       e.preventDefault();
-      const raw = ($('iv-name').value || '').replace(/[<>"'*{}]/g, '').trim().replace(/(님|씨)$/, '').slice(0, 12);
-      if (!raw) return;
-      state.name = raw;
-      cut4();
+      takeName($('iv-name').value);
     };
+    $('iv-skip-name').onclick = () => takeName('');
   }
 
   /* 이름이 박히는 자리. 만세력에서 일간은 '나'다.
@@ -214,12 +218,14 @@ const Intro = (() => {
           <label><input type="radio" name="iv-sex" value="M"><span>남</span></label>
         </div>
         <p class="iv-err" id="iv-err" role="alert"></p>
-        <button type="submit" class="iv-go iv-go-wide">여덟 글자를 세워</button>
+        <button type="submit" class="iv-go iv-go-wide" id="iv-cast">${submitLabel(false)}</button>
       </form>`, 'askbirth');
 
     $('iv-unk').onchange = (e) => {
       const off = e.target.checked;
       ['iv-h', 'iv-i'].forEach((k) => { $(k).disabled = off; if (off) $(k).value = ''; });
+      const btn = $('iv-cast');
+      if (btn) btn.textContent = submitLabel(off);
     };
 
     $('f-birth-form').onsubmit = (e) => {
@@ -239,14 +245,25 @@ const Intro = (() => {
     };
   }
 
+  function submitLabel(unknownTime) {
+    return unknownTime ? '여섯 글자를 세워' : '여덟 글자를 세워';
+  }
+
+  function openLine(unknownTime) {
+    return unknownTime
+      ? '만세력이 열렸다. 연·월·일, 세 기둥이다. 시주는 비운다.'
+      : '만세력이 열렸다. 연·월·일·시, 네 기둥이다.';
+  }
+
   function cut6() {
     const b = state.birth;
     const nm = state.name;
     const when = `${b.year}년 ${b.month}월 ${b.day}일`;
+    const unk = !!(b && b.unknownTime);
     step(`<div class="iv-name-card"><p class="iv-big iv-big-date">${esc(when)}</p></div>`
       + bubbles([
         fill('{이름}.', { 이름: nm }),
-        '만세력이 열렸다. 연·월·일·시, 네 기둥이다.',
+        openLine(unk),
       ], {}), 'turn', () => {
       onDone && onDone(state);
     });
@@ -265,7 +282,7 @@ const Intro = (() => {
     cut1();
   }
 
-  return { start, get state() { return state; } };
+  return { start, submitLabel, openLine, get state() { return state; } };
 })();
 
 if (typeof module !== 'undefined') module.exports = Intro;

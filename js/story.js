@@ -44,13 +44,46 @@ const Story = (() => {
     return (box && box[key]) || null;
   }
 
-  /* 잠긴 문단까지 합쳐 한 장을 통째로 돌려준다.
-     웹툰에서는 중간에 막대를 세우지 않는다 — 읽는 흐름이 끊기면 웹툰이 아니다.
-     값을 받는 자리는 따로 정한다(뒤쪽 장을 통째로 잠그는 식). */
-  function whole(ch, paid) {
+  /* 한 장. 잠기면 글자를 넣지 않고 길이만 남긴다.
+     무료: 명식·성격 앞·오늘. 나머지 장은 한 편 30,000원. */
+  const PRICE = 30000;
+  const NATURE_FREE = 2;
+  const lenOf = (p) => (p && typeof p === 'object' && typeof p.len === 'number')
+    ? p.len : [...String(p || '')].length;
+
+  function pack(ch, paidParas, mode) {
     if (!ch) return null;
-    const rest = (paid && paid.length) ? paid : [];
-    return { title: ch.title, lead: ch.lead, paras: (ch.paras || []).concat(rest) };
+    const extra = Array.isArray(paidParas) ? paidParas : [];
+    const paras = (ch.paras || []).concat(mode === 'open' ? extra : []);
+    if (mode === 'open') return { title: ch.title, lead: ch.lead, paras };
+    if (mode === 'front') {
+      return {
+        title: ch.title, lead: ch.lead,
+        paras: paras.slice(0, NATURE_FREE),
+        hidden: paras.slice(NATURE_FREE).map(lenOf).concat(extra.map(lenOf)),
+        locked: paras.length > NATURE_FREE || extra.length > 0,
+      };
+    }
+    return {
+      title: ch.title,
+      paras: [],
+      hidden: paras.map(lenOf).concat(extra.map(lenOf)),
+      locked: true,
+    };
+  }
+
+  /* story.html 이 폼 값을 엔진에 넘기는 자리.
+     진태양시(경도 −30분)가 기본이다. false 로 끄면 시주가 한 칸 밀린다. */
+  function toManseInput(b) {
+    const unk = !!(b && b.unknownTime);
+    return {
+      year: b.year, month: b.month, day: b.day,
+      hour: unk ? 12 : (b.hour == null ? 12 : b.hour),
+      minute: unk ? 0 : (b.minute == null ? 0 : b.minute),
+      gender: b.gender,
+      useTrueSolar: !b || b.useTrueSolar !== false,
+      unknownTime: unk,
+    };
   }
 
   const pillarCols = (chart) => {
@@ -67,15 +100,31 @@ const Story = (() => {
 
      마지막 장만 light:1 이다. 어두운 데서 시작해 **흰 데로 걸어 나오며 끝난다.** */
   const PLAN = [
-    { key: 'chart',  anchor: 'unfold', mood: [120, 130, 210], say: ['{이름}!', '이게 네 여덟 글자다. 연·월·일·시.'] },
-    { key: 'nature', anchor: 'point',  mood: [ 90, 190, 170], say: ['{이름}.', '태어난 날의 글자, 그게 너다.'] },
-    { key: 'inout',  anchor: 'greet',  mood: [160, 120, 220], say: ['밖에서 읽는 너랑 안에 있는 너가 달라.', '둘 다 너다.'] },
-    { key: 'people', anchor: 'laugh',  mood: [240, 150,  90], say: ['{이름}.', '누구 옆에서 숨이 트이지.'] },
-    { key: 'money',  anchor: 'grave',  mood: [220, 180,  90], say: ['돈은 재성이다. 감정 빼고 보자.'] },
-    { key: 'flow',   anchor: 'far',    mood: [220,  80,  70], say: ['십 년마다 바람이 갈린다.', '{이름}, 지금 그 한가운데다.'] },
-    { key: 'year',   anchor: 'amused', mood: [255, 190, 110], say: ['올해 세운이다. {이름}, 이 해만 따로 보자.'] },
-    { key: 'end',    anchor: 'close',  mood: [200, 195, 185], light: 1, say: ['여기까지다.', '나머지는 {이름}이 산다.'] },
+    { key: 'chart',  anchor: 'unfold', mood: [120, 130, 210] },
+    { key: 'nature', anchor: 'point',  mood: [ 90, 190, 170] },
+    { key: 'inout',  anchor: 'greet',  mood: [160, 120, 220] },
+    { key: 'people', anchor: 'laugh',  mood: [240, 150,  90] },
+    { key: 'money',  anchor: 'grave',  mood: [220, 180,  90] },
+    { key: 'flow',   anchor: 'far',    mood: [220,  80,  70] },
+    { key: 'year',   anchor: 'amused', mood: [255, 190, 110] },
+    { key: 'end',    anchor: 'close',  mood: [200, 195, 185], light: 1 },
   ];
+
+  function sceneSay(step, rp) {
+    const g = rp.glyphCount === 6 ? '여섯' : '여덟';
+    const col = rp.glyphCount === 6 ? '연·월·일' : '연·월·일·시';
+    switch (step.key) {
+      case 'chart':  return ['{이름}!', `이게 네 ${g} 글자다. ${col}.`];
+      case 'nature': return ['{이름}.', '태어난 날의 글자, 그게 너다.'];
+      case 'inout':  return ['밖에서 읽는 너랑 안에 있는 너가 달라.', '둘 다 너다.'];
+      case 'people': return ['{이름}.', '누구 옆에서 숨이 트이지.'];
+      case 'money':  return ['돈은 재성이다. 감정 빼고 보자.'];
+      case 'flow':   return ['십 년마다 바람이 갈린다.', '{이름}, 지금 그 한가운데다.'];
+      case 'year':   return ['올해 세운이다. {이름}, 이 해만 따로 보자.'];
+      case 'end':    return ['여기까지다.', '나머지는 {이름}이 산다.'];
+      default:       return [];
+    }
+  }
 
   /* 장 사이에 끼는 한 줄. 검은 화면에 이것만 뜬다. */
   const BEATS = [
@@ -93,6 +142,16 @@ const Story = (() => {
     const out = [];
     for (const ch of chapters) {
       if (!ch) continue;
+      if (ch.locked || (ch.hidden && ch.hidden.length && !(ch.paras || []).length)) {
+        out.push({ kind: 'prose', title: ch.title || '', lead: '',
+          paras: ch.paras || [], hidden: ch.hidden || [], locked: true });
+        continue;
+      }
+      if (ch.hidden && ch.hidden.length) {
+        out.push({ kind: 'prose', title: ch.title || '', lead: ch.lead || '',
+          paras: ch.paras || [], hidden: ch.hidden, locked: !!ch.locked });
+        continue;
+      }
       const paras = ch.paras || [];
       let buf = [], len = 0, first = true;
       const flush = () => {
@@ -101,8 +160,8 @@ const Story = (() => {
         buf = []; len = 0; first = false;
       };
       for (const p of paras) {
-        buf.push(p); len += p.length;
-        if (len >= 700) flush();       // 벽처럼 쌓이면 안 읽힌다
+        buf.push(p); len += String(p || '').length;
+        if (len >= 700) flush();
       }
       flush();
     }
@@ -112,6 +171,14 @@ const Story = (() => {
   /** 명식 하나 → 컷 배열 */
   function build(rp, opts = {}) {
     const paid = opts.paid || {};
+    const open = !!opts.unlocked;
+    const mode = (k) => {
+      if (open) return 'open';
+      if (k === 'chart') return 'open';
+      if (k === 'nature') return 'front';
+      if (k === 'today') return 'open';
+      return 'lock';
+    };
     const pf = (box, key) => (paid[box] && paid[box][key]) || [];
     const cuts = [];
     const cols = pillarCols(rp.chart);
@@ -122,13 +189,11 @@ const Story = (() => {
       rp.glyphCount === 6 ? '시각 모름' : `${String(inp.hour).padStart(2, '0')}:${String(inp.minute).padStart(2, '0')}`,
     ].join(' · ');
 
-    // 권두 — 주인공 카드
     cuts.push({ kind: 'card', birth, sub, pillars: cols, term: meta.monthTerm ? `${meta.monthTerm}을 지나 태어남` : '' });
 
     let bi = 0;
     for (const step of PLAN) {
-      // mood 를 scene 컷에 실어 보낸다. 화면이 이 컷에 닿으면 배경색이 그쪽으로 끌려간다.
-      cuts.push({ kind: 'scene', anchor: step.anchor, say: step.say,
+      cuts.push({ kind: 'scene', anchor: step.anchor, say: sceneSay(step, rp),
         mood: step.mood, light: step.light || 0, chapter: step.key });
 
       if (step.key === 'chart') {
@@ -136,44 +201,48 @@ const Story = (() => {
           foot: `${rp.glyphCount === 6 ? '여섯' : '여덟'} 글자예요. 위가 하늘의 기운, 아래가 땅의 기운이에요.` });
         cuts.push(...proseCuts([{ title: rp.type.name, lead: rp.type.headline,
           paras: [rp.type.nounGloss, rp.type.modGloss].filter(Boolean) }]));
-        // 표 읽는 법. 이 명식용 깊은 글이 있으면 얹는다.
-        cuts.push(...proseCuts([chartOnly(rp.chart, 'intro')]));
+        cuts.push(...proseCuts([pack(chartOnly(rp.chart, 'intro'), [], mode('chart'))]));
       } else if (step.key === 'nature') {
-        cuts.push(...proseCuts([whole(lf('natures', rp.type.stem + rp.type.season), pf('natures', rp.type.stem + rp.type.season))]));
+        cuts.push(...proseCuts([pack(lf('natures', rp.type.stem + rp.type.season),
+          pf('natures', rp.type.stem + rp.type.season), mode('nature'))]));
+        const t = rp.today;
+        if (t && (t.headline || t.why)) {
+          cuts.push({ kind: 'prose', title: '오늘', chapter: 'today',
+            paras: [t.headline, t.why, t.doThis ? `오늘 해볼 것. ${t.doThis}` : ''].filter(Boolean) });
+        }
       } else if (step.key === 'inout') {
         cuts.push(...proseCuts([
-          whole(lf('hiddenFace', rp.hiddenFace && rp.hiddenFace.key), pf('hiddenFace', rp.hiddenFace && rp.hiddenFace.key)),
-          whole(lf('firstLook', rp.firstLook && rp.firstLook.key), pf('firstLook', rp.firstLook && rp.firstLook.key)),
+          pack(lf('hiddenFace', rp.hiddenFace && rp.hiddenFace.key), pf('hiddenFace', rp.hiddenFace && rp.hiddenFace.key), mode('inout')),
+          pack(lf('firstLook', rp.firstLook && rp.firstLook.key), pf('firstLook', rp.firstLook && rp.firstLook.key), mode('inout')),
         ]));
       } else if (step.key === 'people') {
         cuts.push(...proseCuts([
-          whole(lf('beside', rp.beside && rp.beside.key), pf('beside', rp.beside && rp.beside.key)),
-          whole(lf('friction', rp.friction && rp.friction.key), pf('friction', rp.friction && rp.friction.key)),
+          pack(lf('beside', rp.beside && rp.beside.key), pf('beside', rp.beside && rp.beside.key), mode('people')),
+          pack(lf('friction', rp.friction && rp.friction.key), pf('friction', rp.friction && rp.friction.key), mode('people')),
         ]));
       } else if (step.key === 'money') {
         cuts.push(...proseCuts([
-          whole(lf('wealth', rp.wealth && rp.wealth.key), pf('wealth', rp.wealth && rp.wealth.key)),
-          whole(lf('work', rp.work && rp.work.key), pf('work', rp.work && rp.work.key)),
+          pack(lf('wealth', rp.wealth && rp.wealth.key), pf('wealth', rp.wealth && rp.wealth.key), mode('money')),
+          pack(lf('work', rp.work && rp.work.key), pf('work', rp.work && rp.work.key), mode('money')),
         ]));
       } else if (step.key === 'flow') {
         const cur = rp.curve && rp.curve[rp.current.idx];
-        // 대운 각인 — 딱 한 번, 화면 가득 이름과 나이
         cuts.push({ kind: 'beat', say: `{이름}. ${Math.floor(rp.ageMonths / 12)}살.` });
         if (cur) {
           cuts.push({ kind: 'chart', title: `지금 지나는 십 년 · ${cur.startAge}~${cur.endAge}세`,
             pillars: [{ top: cur.han[0], bot: cur.han[1], tag: cur.ganji }], foot: cur.line });
-          cuts.push(...proseCuts([whole(cur.chapter, pf('daeun', cur.chapter && cur.chapter.key))]));
+          cuts.push(...proseCuts([pack(cur.chapter, pf('daeun', cur.chapter && cur.chapter.key), mode('flow'))]));
         }
-        // 대운 열 줄을 통째로 짚는 글. 태어난 때마다 달라서 이 명식에만 걸린다.
-        cuts.push(...proseCuts([chartOnly(rp.chart, 'daeun')]));
-        cuts.push(...proseCuts([whole(lf('turning', rp.turning && rp.turning.key), pf('turning', rp.turning && rp.turning.key))]));
+        cuts.push(...proseCuts([pack(chartOnly(rp.chart, 'daeun'), [], mode('flow'))]));
+        cuts.push(...proseCuts([pack(lf('turning', rp.turning && rp.turning.key), pf('turning', rp.turning && rp.turning.key), mode('flow'))]));
       } else if (step.key === 'year') {
-        cuts.push(...proseCuts([whole(lf('yearWork', rp.yearWork && rp.yearWork.key), pf('yearWork', rp.yearWork && rp.yearWork.key))]));
+        cuts.push(...proseCuts([pack(lf('yearWork', rp.yearWork && rp.yearWork.key), pf('yearWork', rp.yearWork && rp.yearWork.key), mode('year'))]));
         if (rp.flow && rp.flow.year && rp.flow.year.line) {
-          cuts.push({ kind: 'prose', paras: [rp.flow.year.line] });
+          if (open) cuts.push({ kind: 'prose', paras: [rp.flow.year.line] });
+          else cuts.push({ kind: 'prose', paras: [], hidden: [lenOf(rp.flow.year.line)], locked: true });
         }
       } else if (step.key === 'end') {
-        cuts.push(...proseCuts([chartOnly(rp.chart, 'outro')]));
+        cuts.push(...proseCuts([pack(chartOnly(rp.chart, 'outro'), [], mode('end'))]));
         cuts.push({ kind: 'card', birth, sub, pillars: cols,
           term: meta.monthTerm ? `${meta.monthTerm}을 지나 태어남` : '',
           tail: `{이름}. **${rp.type.name}**.`, saveable: true });
@@ -185,7 +254,7 @@ const Story = (() => {
     return cuts.filter(Boolean);
   }
 
-  return { build, PLAN };
+  return { build, PLAN, PRICE, pack, sceneSay, toManseInput };
 })();
 
 if (typeof module !== 'undefined') module.exports = Story;

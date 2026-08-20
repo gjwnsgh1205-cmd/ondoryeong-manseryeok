@@ -105,7 +105,7 @@ def _stamp_one(staging, page):
 
     html, n = re.subn(r'(src|href)="((?:js|css)/[^"?]+)"', sub, html)
     html_path.write_text(html, encoding="utf-8")
-    print(f"  캐시 무효화: {page} — {n}개 참조에 해시 부착")
+    print(f"  cache bust: {page} - {n} hashed refs")
 
 
 if __name__ == "__main__":
