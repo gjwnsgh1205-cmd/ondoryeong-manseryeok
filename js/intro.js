@@ -139,11 +139,11 @@ const Intro = (() => {
   }
 
   function cut3(asked) {
-    const lines = asked ? ['곧 알게 돼.', '이름.'] : ['이름.'];
+    const lines = asked ? ['곧 알게 돼.', '너, 이름이 뭐냐.'] : ['너, 이름이 뭐냐.'];
     step(bubbles(lines, {}) + `
-      <form class="iv-form" id="f-name-form" autocomplete="off">
-        <input type="text" id="iv-name" maxlength="12" placeholder="이름" spellcheck="false" required>
-        <button type="submit" class="iv-go">→</button>
+      <form class="iv-form iv-form-name" id="f-name-form" autocomplete="off">
+        <input type="text" id="iv-name" maxlength="12" placeholder="두 글자면 된다" spellcheck="false" required>
+        <button type="submit" class="iv-go">부른다</button>
       </form>`, 'askname');
     setTimeout(() => { const n = $('iv-name'); if (n) n.focus(); }, 400);
     $('f-name-form').onsubmit = (e) => {
@@ -155,45 +155,58 @@ const Intro = (() => {
     };
   }
 
-  /* 이름이 크게 박히는 자리. 이 제품의 심장이다. */
+  /* 이름이 박히는 자리. 만세력에서 일간은 '나'다.
+     여덟 글자는 아직 안 섰다. 그래도 사람을 먼저 부른다.
+     웹툰이 회차 제목 대신 주인공 이름을 한 칸 가득 쓰는 그 컷이다. */
   function cut4() {
-    step(`<div class="iv-name-card"><p class="iv-big" id="iv-big"></p></div>`
+    const nm = state.name;
+    step(`<div class="iv-shout-wrap" id="iv-shout-wrap" aria-live="assertive">
+            <p class="iv-shout" id="iv-shout"></p>
+          </div>`
       + bubbles([], {}), 'askname');
-    const el = $('iv-big');
-    const chars = [...state.name];
-    if (REDUCED) { el.textContent = state.name; }
-    else {
-      let i = 0;
-      const tick = () => {
-        el.textContent += chars[i]; i += 1;
-        if (i < chars.length) setTimeout(tick, 180);
-      };
-      tick();
-    }
+
+    const el = $('iv-shout');
+    const fire = () => {
+      el.textContent = nm + '!';
+      el.classList.add('is-in');
+      const wrap = $('iv-shout-wrap');
+      if (wrap) wrap.classList.add('is-flash');
+    };
+    if (REDUCED) fire();
+    else setTimeout(fire, 280);
+
     setTimeout(() => {
       const b = stage().querySelector('.iv-bubbles');
-      b.innerHTML = [`{이름}이라.`, '그래, 그럼 언제 났나.'].map((s, i) =>
-        `<p class="bub" style="--d:${i * 520}ms">${esc(fill(s, { 이름: state.name }))}</p>`).join('');
-      setTimeout(cut5, 2200);
-    }, chars.length * 180 + 900);
+      if (!b) return;
+      b.innerHTML = [
+        fill('{이름}.', { 이름: nm }),
+        '정신 차려. 지금부터 네 얘기다.',
+      ].map((s, i) =>
+        `<p class="bub bub-sharp" style="--d:${i * 380}ms">${esc(s)}</p>`).join('');
+      setTimeout(cut5, REDUCED ? 900 : 2600);
+    }, REDUCED ? 400 : 1400);
   }
 
   function cut5() {
     const y = new Date().getFullYear();
-    step(bubbles(['태어난 때를 말해 봐.'], {}) + `
+    const nm = state.name;
+    step(bubbles([
+      fill('{이름}.', { 이름: nm }),
+      '이 세상에 들어온 때. 달력 숫자 말고, 절기가 갈리는 그 순간이다.',
+    ], {}) + `
       <form class="iv-form iv-form-birth" id="f-birth-form" autocomplete="off">
         <div class="iv-seg" role="radiogroup" aria-label="달력">
           <label><input type="radio" name="iv-cal" value="solar" checked><span>양력</span></label>
           <label><input type="radio" name="iv-cal" value="lunar"><span>음력</span></label>
         </div>
-        <div class="iv-row">
-          <input type="number" id="iv-y" inputmode="numeric" min="1900" max="${y}" placeholder="1990" required>
-          <input type="number" id="iv-m" inputmode="numeric" min="1" max="12" placeholder="12" required>
-          <input type="number" id="iv-d" inputmode="numeric" min="1" max="31" placeholder="5" required>
+        <div class="iv-row iv-row-date">
+          <label class="iv-cell"><span>년</span><input type="number" id="iv-y" inputmode="numeric" min="1900" max="${y}" placeholder="1990" required></label>
+          <label class="iv-cell"><span>월</span><input type="number" id="iv-m" inputmode="numeric" min="1" max="12" placeholder="12" required></label>
+          <label class="iv-cell"><span>일</span><input type="number" id="iv-d" inputmode="numeric" min="1" max="31" placeholder="5" required></label>
         </div>
         <div class="iv-row iv-row-t">
-          <input type="number" id="iv-h" inputmode="numeric" min="0" max="23" placeholder="06">
-          <input type="number" id="iv-i" inputmode="numeric" min="0" max="59" placeholder="30">
+          <label class="iv-cell"><span>시</span><input type="number" id="iv-h" inputmode="numeric" min="0" max="23" placeholder="06"></label>
+          <label class="iv-cell"><span>분</span><input type="number" id="iv-i" inputmode="numeric" min="0" max="59" placeholder="30"></label>
           <label class="iv-chk"><input type="checkbox" id="iv-unk"><span>시각 모름</span></label>
         </div>
         <div class="iv-seg" role="radiogroup" aria-label="성별">
@@ -201,7 +214,7 @@ const Intro = (() => {
           <label><input type="radio" name="iv-sex" value="M"><span>남</span></label>
         </div>
         <p class="iv-err" id="iv-err" role="alert"></p>
-        <button type="submit" class="iv-go iv-go-wide">이걸로 보자</button>
+        <button type="submit" class="iv-go iv-go-wide">여덟 글자를 세워</button>
       </form>`, 'askbirth');
 
     $('iv-unk').onchange = (e) => {
@@ -228,8 +241,13 @@ const Intro = (() => {
 
   function cut6() {
     const b = state.birth;
-    step(`<div class="iv-name-card"><p class="iv-big">${esc(`${b.year}년 ${b.month}월 ${b.day}일생`)}</p></div>`
-      + bubbles(['그대의 사주팔자를 한 번 봐 볼까—?'], {}), 'turn', () => {
+    const nm = state.name;
+    const when = `${b.year}년 ${b.month}월 ${b.day}일`;
+    step(`<div class="iv-name-card"><p class="iv-big iv-big-date">${esc(when)}</p></div>`
+      + bubbles([
+        fill('{이름}.', { 이름: nm }),
+        '만세력이 열렸다. 연·월·일·시, 네 기둥이다.',
+      ], {}), 'turn', () => {
       onDone && onDone(state);
     });
   }

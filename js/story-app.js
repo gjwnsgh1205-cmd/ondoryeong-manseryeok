@@ -49,18 +49,18 @@
   function veilRows(c) {
     const P = c.pillars, m = c.meta || {};
     const rows = [];
-    if (reader) rows.push({ kind: 'type', t: reader, ms: 1500 });
-    else rows.push({ t: '어디 보자…', ms: 1000 });
-    rows.push({ t: `${c.input.year}년 ${c.input.month}월 ${c.input.day}일이라…`, ms: 1000 });
+    if (reader) rows.push({ kind: 'type', t: reader + '!', ms: 1600 });
+    else rows.push({ t: '어디 보자.', ms: 1000 });
+    rows.push({ t: `${c.input.year}년 ${c.input.month}월 ${c.input.day}일.`, ms: 1000 });
     if (m.monthTerm) {
-      rows.push({ t: J ? J.fill('{절기}를 지났군', { 절기: m.monthTerm }) : m.monthTerm, ms: 1300 });
+      rows.push({ t: J ? J.fill('{절기}를 지났다. 월주가 여기서 갈린다.', { 절기: m.monthTerm }) : m.monthTerm, ms: 1500 });
     }
     const cols = ['year', 'month', 'day', 'hour'].filter((k) => P[k])
       .map((k) => ({ top: P[k].stemInfo.han, bot: P[k].branchInfo.han }));
     rows.push({ kind: 'carve', glyphs: cols,
-      t: `${cols.length === 4 ? '여덟' : '여섯'} 글자가 잡혔네`,
+      t: cols.length === 4 ? '연·월·일·시. 네 기둥이다.' : '시각이 없어 여섯 글자다. 시주는 비운다.',
       ms: 900 + cols.length * 2 * 180 + 700 });
-    rows.push({ t: '이제 하나씩 보자', ms: 1200 });
+    rows.push({ t: reader ? reader + '. 네 회차다.' : '이제 하나씩 보자.', ms: 1300 });
     return rows;
   }
 
